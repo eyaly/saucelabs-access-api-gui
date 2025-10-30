@@ -1,0 +1,264 @@
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+:root {
+  --green: #34d399;
+  --green-100: #f0fff4;
+  --green-700: #059669;
+  --orange: #f97316;
+  --orange-100: #fff7ed;
+  --blue: #2563eb;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --card-radius: 16px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06);
+  --shadow-lg: 0 6px 18px rgba(0,0,0,.08);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: #f6f7fb;
+}
+
+/* ---------- Page shell ---------- */
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+}
+
+.page h1 {
+  margin: 0 0 18px;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+/* ---------- Toolbar ---------- */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.search {
+  flex: 3;
+  max-width: 500px;
+  height: 46px;
+  padding: 0 14px;
+  font-size: 16px;
+  border: 2px solid #f4a300;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  min-width: 260px;
+}
+
+.btn-refresh {
+  height: 46px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #9aa0aa;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+.btn-refresh:hover { box-shadow: var(--shadow-lg); }
+.btn-refresh:active { transform: translateY(1px); }
+
+/* ---------- Grid / List (flex wrap to control card sizing) ---------- */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  justify-content: flex-start; /* left-align rows */
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  padding-top: 20px;
+}
+
+/* ---------- Device Card ---------- */
+.device-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 18px;
+  border: 2px solid var(--green);
+  border-radius: var(--card-radius);
+  background: var(--green-100);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+
+  /* sizing for flex layout:
+     - base width (flex-basis) controls how many fit per row
+     - min and max prevent cards from shrinking/growing too far */
+  flex: 0 1 320px;   /* don't grow beyond max-width, allow shrinking */
+  min-width: 260px;
+  max-width: 420px;
+  box-sizing: border-box;
+  margin: 0;
+  align-self: start; /* keep card top-aligned in a row */
+  position: relative;
+}
+.device-card:hover {
+  transform: scale(1.005);
+  box-shadow: var(--shadow-lg);
+}
+.device-card.inuse {
+  border-color: var(--orange);
+  background: var(--orange-100);
+}
+
+/* ---------- Left side ---------- */
+.device-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.device-image {
+  width: 120px;
+  height: 150px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafafa;
+  color: #a3a3a3;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 8px;
+  font-size: 14px;
+}
+
+.device-name {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 800;
+}
+.device-os {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon { font-size: 18px; color: #1f2937; }
+.icon.android { color: #16a34a; }
+
+.device-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.device-state {
+  margin: 6px 0 0;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.device-state.available { color: var(--green-700); }
+.device-state.inuse { color: var(--orange); }
+
+.device-owner {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Removed .device-toggle as it's no longer a separate column */
+
+/* Toggle styling */
+.toggle {
+  position: relative;
+  width: 42px;
+  height: 22px;
+  margin-bottom: 4px;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0;
+  background: #c7cbd1;
+  border-radius: 999px;
+  transition: .25s;
+  cursor: pointer;
+}
+.slider::after {
+  content: "";
+  position: absolute;
+  left: 2px; bottom: 2px;
+  width: 18px; height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: .25s;
+}
+.toggle input:checked + .slider { background: var(--blue); }
+.toggle input:checked + .slider::after { transform: translateX(18px); }
+
+/* Disabled look */
+.device-card input:disabled:not(:checked),
+.device-card input:disabled:not(:checked) + .slider {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.toggle-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.connected-text { color: var(--blue); }
+
+/* Session ID styling */
+.session-id {
+  margin-top: 6px;
+  padding: 3px 6px;
+  max-width: 120px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #374151;
+  background: #eef2ff;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  /* prefer 2 columns on medium screens */
+  .device-card { flex-basis: 45%; min-width: 300px; }
+}
+
+@media (max-width: 760px) {
+  .toolbar {
+    flex-direction: column;
+  }
+  .cards {
+    justify-content: center;
+  }
+  .device-card {
+    flex-basis: 100%;
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+}
