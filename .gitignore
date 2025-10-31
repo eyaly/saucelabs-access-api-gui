@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+.report/
+
+# Node.js
+# Attention: When using install with `--savelink` or `yarn link`,
+# the link files in `node_modules` might be ignored.
+node_modules/
+/.pnp
+.pnp.js
+
+# webpack
+.webpack/
+*.build.js
+
+# Vite
+.vite/
+dist/
+build/
+
+# Environments
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Editor/IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Electron
+coverage/
+.electron-builder/
+!.env.example

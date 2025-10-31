@@ -37,6 +37,13 @@ export default function Devices() {
       // 🧩 Fetch extra /v1 details for each device
       const detailedDevices = await Promise.all(
         deviceList.map(async (d) => {
+          // Check if this device is already connected from the previous state
+          const existingDevice = devices.find(prevD => prevD.descriptor === d.descriptor);
+          if (existingDevice && existingDevice.sessionId) {
+            // If connected, keep its session state and ID
+            return { ...d, ...existingDevice, region, sessionId: existingDevice.sessionId, state: existingDevice.state };
+          }
+
           const detailUrl = `https://api.${region}.saucelabs.com/v1/rdc/devices/${d.descriptor}`;
           try {
             const detailResponse = await window.api.fetchSauce({
@@ -44,15 +51,45 @@ export default function Devices() {
               creds,
               method: "GET",
             });
+            let deviceDetails = { ...d, region };
             if (detailResponse.ok) {
-              return { ...d, ...detailResponse.data, region };
+              deviceDetails = { ...deviceDetails, ...detailResponse.data };
             } else {
               console.warn(`⚠️ Could not fetch details for ${d.descriptor}`);
-              return d;
             }
-          } catch {
-            console.warn(`⚠️ Failed detail call for ${d.descriptor}`);
-            return d;
+
+            // If device is IN_USE, fetch session ID
+            if (deviceDetails.state === "IN_USE") {
+              const sessionsUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions?deviceName=${d.descriptor}`;
+              try {
+                const sessionsResponse = await window.api.fetchSauce({
+                  url: sessionsUrl,
+                  creds,
+                  method: "GET",
+                });
+                if (sessionsResponse.ok && sessionsResponse.data?.items?.length > 0) {
+                  const activeSession = sessionsResponse.data.items.find(s => s.state === "ACTIVE");
+                  if (activeSession) {
+                    deviceDetails.sessionId = activeSession.id;
+                    deviceDetails.state = "IN_USE";
+                  } else {
+                    deviceDetails.sessionId = null;
+                    deviceDetails.state = "AVAILABLE";
+                  }
+                } else {
+                  deviceDetails.sessionId = null;
+                  deviceDetails.state = "AVAILABLE";
+                }
+              } catch (sessionErr) {
+                console.warn(`⚠️ Failed to fetch session for ${d.descriptor}:`, sessionErr);
+                deviceDetails.sessionId = null;
+                deviceDetails.state = "AVAILABLE";
+              }
+            }
+            return deviceDetails;
+          } catch (err) {
+            console.warn(`⚠️ Failed detail call for ${d.descriptor}:`, err);
+            return { ...d, region, sessionId: null, state: "AVAILABLE" };
           }
         })
       );

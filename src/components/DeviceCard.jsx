@@ -80,23 +80,25 @@ export default function DeviceCard({ device, onToggleSession }) {
           </p>
 
           <div className="device-meta device-toggle-inline">
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={connected}
-                onChange={handleToggle}
-                disabled={!connected && device.state !== "AVAILABLE"}
-              />
-              <span className="slider"></span>
-            </label>
-            <span
-              className={`toggle-text ${connected ? "connected-text" : ""}`}
-            >
-              {connected ? "Connected" : "Connect"}
-            </span>
+            <div className="toggle-and-text">
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={connected}
+                  onChange={handleToggle}
+                  disabled={!connected && device.state !== "AVAILABLE"}
+                />
+                <span className="slider"></span>
+              </label>
+              <span
+                className={`toggle-text ${connected ? "connected-text" : ""}`}
+              >
+                {connected ? "Connected" : "Connect"}
+              </span>
+            </div>
 
             {connected && device.sessionId && (
-              <span className="session-id">{device.sessionId}</span>
+              <span className="session-id-display">{device.sessionId}</span>
             )}
           </div>
 

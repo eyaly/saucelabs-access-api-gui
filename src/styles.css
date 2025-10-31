@@ -172,6 +172,31 @@ body {
   line-height: 1.35;
 }
 
+.device-toggle-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align children to the start (left) */
+  margin: 6px 0;
+}
+
+.toggle-and-text {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between toggle and text */
+}
+
+.session-id-display {
+  margin-top: 6px; /* Space below button/text */
+  padding: 3px 6px;
+  max-width: 120px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #374151;
+  background: #eef2ff;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
 .device-state {
   margin: 6px 0 0;
   font-weight: 800;
@@ -186,14 +211,12 @@ body {
   font-size: 14px;
 }
 
-/* Removed .device-toggle as it's no longer a separate column */
-
 /* Toggle styling */
 .toggle {
   position: relative;
   width: 42px;
   height: 22px;
-  margin-bottom: 4px;
+  margin-bottom: 0; /* Remove bottom margin from toggle itself */
 }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .slider {
