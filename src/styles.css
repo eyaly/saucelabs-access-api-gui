@@ -102,6 +102,7 @@ body {
   padding: 20px 22px;
   box-shadow: var(--shadow);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  min-height: 320px;
 
   /* sizing for flex layout:
      - base width (flex-basis) controls how many fit per row
@@ -185,18 +186,6 @@ body {
   gap: 8px; /* Space between toggle and text */
 }
 
-.session-id-display {
-  margin-top: 6px; /* Space below button/text */
-  padding: 3px 6px;
-  max-width: 120px;
-  font-size: 11px;
-  line-height: 1.2;
-  color: #374151;
-  background: #eef2ff;
-  border-radius: 6px;
-  word-break: break-all;
-}
-
 .device-state {
   margin: 6px 0 0;
   font-weight: 800;
@@ -263,6 +252,31 @@ body {
   background: #eef2ff;
   border-radius: 6px;
   word-break: break-all;
+}
+
+.device-links {
+  display: flex;
+  gap: 14px;
+  margin: 16px 0 0;
+}
+
+.device-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.device-links:not(.disabled) .device-link:hover {
+  text-decoration: underline;
+}
+
+.device-links.disabled .device-link {
+  pointer-events: none;
+  opacity: 0.45;
+  color: var(--muted);
+  cursor: default;
 }
 
 /* ---------- Responsive ---------- */

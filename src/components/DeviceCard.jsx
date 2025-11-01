@@ -19,6 +19,18 @@ export default function DeviceCard({ device, onToggleSession }) {
     if (onToggleSession) await onToggleSession(device, newState);
   };
 
+  const hasActiveSession = !!device.sessionId;
+  const regionLabel = (() => {
+    switch ((device.region || "").toLowerCase()) {
+      case "eu-central-1":
+        return "EU";
+      case "us-west-1":
+        return "US";
+      default:
+        return device.region || "N/A";
+    }
+  })();
+
   const isIOS = (device.os || "").toUpperCase().includes("IOS");
   const osIcon = isIOS ? (
     <FaApple className="icon" />
@@ -66,17 +78,11 @@ export default function DeviceCard({ device, onToggleSession }) {
             Screen: {device.screenSize ? `${device.screenSize}"` : "N/A"}
           </p>
           <p className="device-meta">
-            {(() => {
-              switch (device.region) {
-                case "eu-central-1": return "EU";
-                case "us-west-1": return "US";
-                default: return device.region || "N/A";
-              }
-            })()}
+            {regionLabel} | Private
           </p>
           <p className="device-meta">{device.descriptor}</p>
           <p className="device-meta">
-            Private
+            session id: {device.sessionId || "—"}
           </p>
 
           <div className="device-meta device-toggle-inline">
@@ -96,15 +102,28 @@ export default function DeviceCard({ device, onToggleSession }) {
                 {connected ? "Connected" : "Connect"}
               </span>
             </div>
-
-            {connected && device.sessionId && (
-              <span className="session-id-display">{device.sessionId}</span>
-            )}
           </div>
 
           <p className={`device-state ${borderClass}`}>
             {(device.sessionState || device.state || "UNKNOWN").toUpperCase()}
           </p>
+
+          <div className={`device-links ${hasActiveSession ? "" : "disabled"}`}>
+            <a
+              href="#"
+              className="device-link"
+              aria-disabled={!hasActiveSession}
+            >
+              Launch Live Test
+            </a>
+            <a
+              href="#"
+              className="device-link"
+              aria-disabled={!hasActiveSession}
+            >
+              View Device Log
+            </a>
+          </div>
 
           {inUseText && (
             <p className="inuse-by">In use by: {inUseText}</p>
