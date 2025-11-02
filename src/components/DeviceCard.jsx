@@ -10,8 +10,12 @@ export default function DeviceCard({ device, onToggleSession }) {
   }, [device.sessionId]);
 
   const handleToggle = async () => {
+    // Prevent any action if device is updating
+    if (device.isUpdating) return;
+    
     // allow disconnect even if not AVAILABLE
     const isDisconnecting = connected;
+    // Disable connecting if device state is not AVAILABLE
     if (!isDisconnecting && device.state !== "AVAILABLE") return;
 
     const newState = !connected;
@@ -29,6 +33,20 @@ export default function DeviceCard({ device, onToggleSession }) {
       default:
         return device.region || "N/A";
     }
+  })();
+
+  const cardStateClass = (() => {
+    if (hasActiveSession) return "state-session";
+    if (device.isUpdating) return "state-other";
+    const state = (device.sessionState || device.state || "").toUpperCase();
+    // Check state first - AVAILABLE should always be green
+    if (state.includes("AVAILABLE")) return "state-available";
+    // Check if device is in use by someone else (has inUseBy but no sessionId for current user)
+    if (device.inUseBy && !hasActiveSession) return "state-inuse";
+    if (state.includes("IN_USE") || state.includes("INUSE")) return "state-inuse";
+    if (state.includes("ACTIVE")) return "state-active";
+    if (state.includes("CLEANUP")) return "state-cleanup";
+    return "state-other";
   })();
 
   const isIOS = (device.os || "").toUpperCase().includes("IOS");
@@ -64,9 +82,13 @@ export default function DeviceCard({ device, onToggleSession }) {
   }
 
   return (
-    <div className={`device-card ${connected ? "connected" : ""} ${borderClass}`}>
+    <div className={`device-card ${cardStateClass}`}>
       <div className="device-info">
-        <div className="device-image">device image</div>
+        <img
+          className="device-image"
+          src={`https://d3ty40hendov17.cloudfront.net/device-pictures/${device.descriptor}.png`}
+          alt={device.name || device.descriptor}
+        />
 
         <div>
           <h2 className="device-name">{device.name || device.descriptor}</h2>
@@ -80,7 +102,7 @@ export default function DeviceCard({ device, onToggleSession }) {
           <p className="device-meta">
             {regionLabel} | Private
           </p>
-          <p className="device-meta">{device.descriptor}</p>
+          <p className="device-meta device-descriptor">{device.descriptor}</p>
           <p className="device-meta">
             session id: {device.sessionId || "—"}
           </p>
@@ -92,7 +114,7 @@ export default function DeviceCard({ device, onToggleSession }) {
                   type="checkbox"
                   checked={connected}
                   onChange={handleToggle}
-                  disabled={!connected && device.state !== "AVAILABLE"}
+                  disabled={device.isUpdating || (!connected && device.state !== "AVAILABLE")}
                 />
                 <span className="slider"></span>
               </label>
@@ -105,7 +127,7 @@ export default function DeviceCard({ device, onToggleSession }) {
           </div>
 
           <p className={`device-state ${borderClass}`}>
-            {(device.sessionState || device.state || "UNKNOWN").toUpperCase()}
+            {device.isUpdating ? "UPDATING..." : (device.sessionState || device.state || "UNKNOWN").toUpperCase()}
           </p>
 
           <div className={`device-links ${hasActiveSession ? "" : "disabled"}`}>

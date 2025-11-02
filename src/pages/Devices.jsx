@@ -40,8 +40,14 @@ export default function Devices() {
           // Check if this device is already connected from the previous state
           const existingDevice = devices.find(prevD => prevD.descriptor === d.descriptor);
           if (existingDevice && existingDevice.sessionId) {
-            // If connected, keep its session state and ID
-            return { ...d, ...existingDevice, region, sessionId: existingDevice.sessionId, state: existingDevice.state };
+            // If device has an active session, ALWAYS preserve it and only update inUseBy
+            // Don't refresh the device - just update the "in use by" information from status API
+            return { 
+              ...existingDevice, 
+              region,
+              // Only update inUseBy from status API if available
+              inUseBy: d.inUseBy || existingDevice.inUseBy
+            };
           }
 
           const detailUrl = `https://api.${region}.saucelabs.com/v1/rdc/devices/${d.descriptor}`;
@@ -52,14 +58,23 @@ export default function Devices() {
               method: "GET",
             });
             let deviceDetails = { ...d, region };
+            // Preserve initial state from status API
+            const initialState = d.state;
             if (detailResponse.ok) {
               deviceDetails = { ...deviceDetails, ...detailResponse.data };
+              // Preserve IN_USE state from status API if detail API doesn't have it but status API does
+              if (initialState === "IN_USE" && !deviceDetails.state) {
+                deviceDetails.state = "IN_USE";
+              }
             } else {
               console.warn(`⚠️ Could not fetch details for ${d.descriptor}`);
             }
 
-            // If device is IN_USE, fetch session ID
-            if (deviceDetails.state === "IN_USE") {
+            // If device is IN_USE (from either status or detail API), fetch session ID
+            if (deviceDetails.state === "IN_USE" || initialState === "IN_USE") {
+              if (deviceDetails.state !== "IN_USE") {
+                deviceDetails.state = "IN_USE";
+              }
               const sessionsUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions?deviceName=${d.descriptor}`;
               try {
                 const sessionsResponse = await window.api.fetchSauce({
@@ -73,17 +88,32 @@ export default function Devices() {
                     deviceDetails.sessionId = activeSession.id;
                     deviceDetails.state = "IN_USE";
                   } else {
+                    // No active session found, but keep IN_USE if inUseBy exists
                     deviceDetails.sessionId = null;
-                    deviceDetails.state = "AVAILABLE";
+                    if (deviceDetails.inUseBy) {
+                      deviceDetails.state = "IN_USE";
+                    } else {
+                      deviceDetails.state = "AVAILABLE";
+                    }
                   }
                 } else {
+                  // No sessions found, but keep IN_USE if inUseBy exists
                   deviceDetails.sessionId = null;
-                  deviceDetails.state = "AVAILABLE";
+                  if (deviceDetails.inUseBy) {
+                    deviceDetails.state = "IN_USE";
+                  } else {
+                    deviceDetails.state = "AVAILABLE";
+                  }
                 }
               } catch (sessionErr) {
                 console.warn(`⚠️ Failed to fetch session for ${d.descriptor}:`, sessionErr);
+                // On error, preserve IN_USE state if inUseBy exists
                 deviceDetails.sessionId = null;
-                deviceDetails.state = "AVAILABLE";
+                if (deviceDetails.inUseBy) {
+                  deviceDetails.state = "IN_USE";
+                } else {
+                  deviceDetails.state = "AVAILABLE";
+                }
               }
             }
             return deviceDetails;
@@ -151,10 +181,12 @@ export default function Devices() {
           setDevices((prev) =>
             prev.map((d) =>
               d.descriptor === device.descriptor
-                ? { ...d, sessionId: null, state: "AVAILABLE" }
+                ? { ...d, sessionId: null, state: "UPDATING", isUpdating: true }
                 : d
             )
           );
+          // Wait for automatic 20-second refresh to update the device state
+          // This prevents users from connecting while device is transitioning
         } else {
           console.error("❌ Failed to delete session:", response);
         }
@@ -166,6 +198,14 @@ export default function Devices() {
 
   useEffect(() => {
     fetchDevices();
+
+    // Set up automatic refresh every 20 seconds
+    const refreshInterval = setInterval(() => {
+      fetchDevices();
+    }, 20000); // 20 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   // 🔍 Filter by search text
@@ -184,9 +224,6 @@ export default function Devices() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="refresh-btn" onClick={fetchDevices}>
-          Refresh
-        </button>
       </div>
 
       {loading && <p>🔄 Loading devices...</p>}

@@ -100,6 +100,7 @@ body {
   border-radius: var(--card-radius);
   background: var(--green-100);
   padding: 20px 22px;
+  padding-left: 11px;
   box-shadow: var(--shadow);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   min-height: 320px;
@@ -107,9 +108,9 @@ body {
   /* sizing for flex layout:
      - base width (flex-basis) controls how many fit per row
      - min and max prevent cards from shrinking/growing too far */
-  flex: 0 1 320px;   /* don't grow beyond max-width, allow shrinking */
+  flex: 0 1 380px;   /* don't grow beyond max-width, allow shrinking */
   min-width: 260px;
-  max-width: 420px;
+  max-width: 480px;
   box-sizing: border-box;
   margin: 0;
   align-self: start; /* keep card top-aligned in a row */
@@ -124,6 +125,24 @@ body {
   background: var(--orange-100);
 }
 
+.device-card.state-available {
+  border-color: var(--green);
+  background: rgba(86, 195, 123, 0.15);
+}
+
+.device-card.state-session {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.device-card.state-inuse,
+.device-card.state-active,
+.device-card.state-cleanup,
+.device-card.state-other {
+  border-color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+}
+
 /* ---------- Left side ---------- */
 .device-info {
   display: flex;
@@ -131,20 +150,19 @@ body {
   gap: 16px;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+}
+
+.device-info > div:last-child {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: break-word;
 }
 
 .device-image {
-  width: 120px;
-  height: 150px;
-  border: 2px dashed #d1d5db;
-  border-radius: 12px;
-  background: #fafafa;
-  color: #a3a3a3;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 8px;
-  font-size: 14px;
+  max-width: 120px;
+  max-height: 150px;
+  object-fit: contain;
 }
 
 .device-name {
@@ -171,6 +189,29 @@ body {
   font-size: 14px;
   color: var(--muted);
   line-height: 1.35;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.device-meta > * {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* Ensure text content in device-meta wraps properly, except descriptor */
+.device-meta:not(.device-toggle-inline):not(.device-descriptor) {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Device descriptor should stay on one line */
+.device-descriptor {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .device-toggle-inline {
