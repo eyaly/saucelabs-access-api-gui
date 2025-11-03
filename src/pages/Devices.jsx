@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DeviceCard from "../components/DeviceCard";
 
-export default function Devices() {
+export default function Devices({ onViewDeviceLog }) {
   const [devices, setDevices] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -220,6 +220,7 @@ export default function Devices() {
             key={device.descriptor}
             device={device}
             onToggleSession={handleToggleSession}
+            onViewDeviceLog={onViewDeviceLog}
           />
         ))}
       </div>

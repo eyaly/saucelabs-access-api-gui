@@ -1,9 +1,62 @@
 import React, { useState } from "react";
 import Devices from "./pages/Devices";
 import Settings from "./pages/Settings";
+import LiveViewModal from "./pages/LiveView";
+import DeviceLogModal from "./components/DeviceLogModal";
 
 export default function App() {
   const [page, setPage] = useState("devices");
+  const [liveViews, setLiveViews] = useState([]); // Array of { id, url, deviceName }
+  const [deviceLogs, setDeviceLogs] = useState([]); // Array of { id, websocketUrl, deviceName, sessionId }
+
+  // Handle "View Device Log" click
+  const handleViewDeviceLog = async (device) => {
+    try {
+      const creds = await window.api.getCreds();
+      if (!creds?.username || !creds?.accessKey) {
+        console.error("Missing credentials");
+        return;
+      }
+
+      const region = device.region || creds.region || "eu-central-1";
+      const sessionUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}`;
+
+      console.log(`📡 Fetching session details for device log: ${device.sessionId}`);
+      const response = await window.api.fetchSauce({
+        url: sessionUrl,
+        creds,
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Failed to fetch session: ${response.status}`);
+        return;
+      }
+
+      const eventsWebsocketUrl = response.data?.links?.eventsWebsocketUrl;
+      if (eventsWebsocketUrl) {
+        // Format WebSocket URL with credentials
+        // From: wss://api.eu-central-1.saucelabs.com/rdc/v2/socket/companion/<session id>
+        // To: wss://username:accessKey@api.eu-central-1.saucelabs.com/rdc/v2/socket/companion/<session id>
+        // Remove the wss:// prefix, add credentials, then add wss:// back
+        const urlWithoutProtocol = eventsWebsocketUrl.replace(/^wss:\/\//, "");
+        const authenticatedUrl = `wss://${encodeURIComponent(creds.username)}:${encodeURIComponent(creds.accessKey)}@${urlWithoutProtocol}`;
+
+        console.log(`✅ Opening device log WebSocket`);
+        const newLog = {
+          id: Date.now(),
+          websocketUrl: authenticatedUrl,
+          deviceName: device.name || device.descriptor,
+          sessionId: device.sessionId,
+        };
+        setDeviceLogs((prev) => [...prev, newLog]);
+      } else {
+        console.warn("⚠️ No eventsWebsocketUrl found in session response");
+      }
+    } catch (err) {
+      console.error("❌ Error opening device log:", err);
+    }
+  };
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -76,8 +129,35 @@ export default function App() {
           backgroundColor: "#fafafa",
         }}
       >
-        {page === "devices" && <Devices />}
+        {page === "devices" && <Devices onViewDeviceLog={handleViewDeviceLog} />}
         {page === "settings" && <Settings />}
+        
+        {/* Render all live view modals */}
+        {liveViews.map((liveView, index) => (
+          <LiveViewModal
+            key={liveView.id}
+            liveViewUrl={liveView.url}
+            deviceName={liveView.deviceName}
+            index={index}
+            onClose={() => {
+              setLiveViews((prev) => prev.filter((lv) => lv.id !== liveView.id));
+            }}
+          />
+        ))}
+
+        {/* Render all device log modals */}
+        {deviceLogs.map((log, index) => (
+          <DeviceLogModal
+            key={log.id}
+            websocketUrl={log.websocketUrl}
+            deviceName={log.deviceName}
+            sessionId={log.sessionId}
+            index={index}
+            onClose={() => {
+              setDeviceLogs((prev) => prev.filter((l) => l.id !== log.id));
+            }}
+          />
+        ))}
       </main>
     </div>
   );

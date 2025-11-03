@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaAndroid, FaApple } from "react-icons/fa6";
 
-export default function DeviceCard({ device, onToggleSession }) {
+export default function DeviceCard({ device, onToggleSession, onViewDeviceLog }) {
   const [connected, setConnected] = useState(!!device.sessionId);
 
   // Keep toggle synced with current sessionId after refresh
@@ -81,6 +81,66 @@ export default function DeviceCard({ device, onToggleSession }) {
     }
   }
 
+  // Handle "View Device Log" click
+  const handleViewDeviceLog = async (e) => {
+    e.preventDefault();
+    if (!hasActiveSession || !device.sessionId) {
+      console.warn("No active session to view device log");
+      return;
+    }
+
+    // Pass the device info to parent, which will fetch session and open log modal
+    if (onViewDeviceLog) {
+      onViewDeviceLog(device);
+    }
+  };
+
+  // Handle "Launch Live Test" click
+  const handleLaunchLiveTest = async (e) => {
+    e.preventDefault();
+    if (!hasActiveSession || !device.sessionId) {
+      console.warn("No active session to launch live test");
+      return;
+    }
+
+    try {
+      const creds = await window.api.getCreds();
+      if (!creds?.username || !creds?.accessKey) {
+        console.error("Missing credentials");
+        return;
+      }
+
+      const region = device.region || creds.region || "eu-central-1";
+      const sessionUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}`;
+
+      console.log(`📡 Fetching session details for ${device.sessionId}`);
+      const response = await window.api.fetchSauce({
+        url: sessionUrl,
+        creds,
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Failed to fetch session: ${response.status}`);
+        return;
+      }
+
+      const liveViewUrl = response.data?.links?.liveViewUrl;
+      if (liveViewUrl) {
+        console.log(`✅ Opening live view in browser: ${liveViewUrl}`);
+        if (window.api?.openLiveView) {
+          window.api.openLiveView(liveViewUrl);
+        } else {
+          console.error("❌ openLiveView API not available");
+        }
+      } else {
+        console.warn("⚠️ No liveViewUrl found in session response");
+      }
+    } catch (err) {
+      console.error("❌ Error launching live test:", err);
+    }
+  };
+
   return (
     <div className={`device-card ${cardStateClass}`}>
       <div className="device-info">
@@ -138,6 +198,7 @@ export default function DeviceCard({ device, onToggleSession }) {
               href="#"
               className="device-link"
               aria-disabled={!hasActiveSession}
+              onClick={handleLaunchLiveTest}
             >
               Launch Live Test
             </a>
@@ -145,6 +206,7 @@ export default function DeviceCard({ device, onToggleSession }) {
               href="#"
               className="device-link"
               aria-disabled={!hasActiveSession}
+              onClick={handleViewDeviceLog}
             >
               View Device Log
             </a>
