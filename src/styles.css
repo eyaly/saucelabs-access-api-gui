@@ -235,6 +235,12 @@ body {
 .device-state.available { color: var(--green-700); }
 .device-state.inuse { color: var(--orange); }
 
+.device-state-user {
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 8px;
+}
+
 .device-owner {
   margin: 4px 0 0;
   color: var(--muted);

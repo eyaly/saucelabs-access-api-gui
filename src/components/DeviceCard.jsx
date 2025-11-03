@@ -128,6 +128,9 @@ export default function DeviceCard({ device, onToggleSession }) {
 
           <p className={`device-state ${borderClass}`}>
             {device.isUpdating ? "UPDATING..." : (device.sessionState || device.state || "UNKNOWN").toUpperCase()}
+            {inUseText && (
+              <span className="device-state-user"> {inUseText}</span>
+            )}
           </p>
 
           <div className={`device-links ${hasActiveSession ? "" : "disabled"}`}>
@@ -146,10 +149,6 @@ export default function DeviceCard({ device, onToggleSession }) {
               View Device Log
             </a>
           </div>
-
-          {inUseText && (
-            <p className="inuse-by">In use by: {inUseText}</p>
-          )}
         </div>
       </div>
     </div>
