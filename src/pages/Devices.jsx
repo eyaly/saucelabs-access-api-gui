@@ -190,10 +190,13 @@ export default function Devices() {
     return () => clearInterval(refreshInterval);
   }, []);
 
-  // 🔍 Filter by search text
-  const filteredDevices = devices.filter((d) =>
-    d.descriptor.toLowerCase().includes(search.toLowerCase())
-  );
+  // 🔍 Filter by search text (by device name)
+  const filteredDevices = devices.filter((d) => {
+    if (!search) return true; // Show all if search is empty
+    const searchLower = search.toLowerCase();
+    const deviceName = (d.name || "").toLowerCase();
+    return deviceName.includes(searchLower);
+  });
 
   return (
     <div className="page">
