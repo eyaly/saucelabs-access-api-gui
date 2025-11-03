@@ -34,14 +34,13 @@ export default function Devices() {
       const deviceList = response.data?.devices || [];
       console.log(`✅ Loaded ${deviceList.length} devices`);
 
-      // 🧩 Fetch extra /v1 details for each device
+      // 🧩 Process devices from status API
       const detailedDevices = await Promise.all(
         deviceList.map(async (d) => {
           // Check if this device is already connected from the previous state
           const existingDevice = devices.find(prevD => prevD.descriptor === d.descriptor);
           if (existingDevice && existingDevice.sessionId) {
-            // If device has an active session, ALWAYS preserve it and only update inUseBy
-            // Don't refresh the device - just update the "in use by" information from status API
+            // Device has an active session - preserve it completely, only update inUseBy
             return { 
               ...existingDevice, 
               region,
@@ -50,6 +49,7 @@ export default function Devices() {
             };
           }
 
+          // Device doesn't have a sessionId - fetch device details and check for active sessions
           const detailUrl = `https://api.${region}.saucelabs.com/v1/rdc/devices/${d.descriptor}`;
           try {
             const detailResponse = await window.api.fetchSauce({
@@ -57,24 +57,15 @@ export default function Devices() {
               creds,
               method: "GET",
             });
-            let deviceDetails = { ...d, region };
-            // Preserve initial state from status API
-            const initialState = d.state;
+            let deviceDetails = { ...d, region, sessionId: null };
             if (detailResponse.ok) {
               deviceDetails = { ...deviceDetails, ...detailResponse.data };
-              // Preserve IN_USE state from status API if detail API doesn't have it but status API does
-              if (initialState === "IN_USE" && !deviceDetails.state) {
-                deviceDetails.state = "IN_USE";
-              }
             } else {
               console.warn(`⚠️ Could not fetch details for ${d.descriptor}`);
             }
 
-            // If device is IN_USE (from either status or detail API), fetch session ID
-            if (deviceDetails.state === "IN_USE" || initialState === "IN_USE") {
-              if (deviceDetails.state !== "IN_USE") {
-                deviceDetails.state = "IN_USE";
-              }
+            // If device state is IN_USE, check for active sessions
+            if (d.state === "IN_USE") {
               const sessionsUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions?deviceName=${d.descriptor}`;
               try {
                 const sessionsResponse = await window.api.fetchSauce({
@@ -82,44 +73,35 @@ export default function Devices() {
                   creds,
                   method: "GET",
                 });
-                if (sessionsResponse.ok && sessionsResponse.data?.items?.length > 0) {
-                  const activeSession = sessionsResponse.data.items.find(s => s.state === "ACTIVE");
+                // Handle both "items" and "sessions" response formats
+                const sessions = sessionsResponse.data?.items || sessionsResponse.data?.sessions || [];
+                if (sessions.length > 0) {
+                  const activeSession = sessions.find(s => s.state === "ACTIVE");
                   if (activeSession) {
+                    // Found an ACTIVE session - set sessionId, device will be blue and toggle on
                     deviceDetails.sessionId = activeSession.id;
                     deviceDetails.state = "IN_USE";
+                    // inUseBy is already set from status API response
                   } else {
-                    // No active session found, but keep IN_USE if inUseBy exists
-                    deviceDetails.sessionId = null;
-                    if (deviceDetails.inUseBy) {
-                      deviceDetails.state = "IN_USE";
-                    } else {
-                      deviceDetails.state = "AVAILABLE";
-                    }
+                    // No active session found - device is IN_USE but no session for current user
+                    deviceDetails.state = "IN_USE";
+                    // inUseBy is already set from status API response
                   }
                 } else {
-                  // No sessions found, but keep IN_USE if inUseBy exists
-                  deviceDetails.sessionId = null;
-                  if (deviceDetails.inUseBy) {
-                    deviceDetails.state = "IN_USE";
-                  } else {
-                    deviceDetails.state = "AVAILABLE";
-                  }
+                  // No sessions found
+                  deviceDetails.state = "IN_USE";
+                  // inUseBy is already set from status API response
                 }
               } catch (sessionErr) {
                 console.warn(`⚠️ Failed to fetch session for ${d.descriptor}:`, sessionErr);
-                // On error, preserve IN_USE state if inUseBy exists
-                deviceDetails.sessionId = null;
-                if (deviceDetails.inUseBy) {
-                  deviceDetails.state = "IN_USE";
-                } else {
-                  deviceDetails.state = "AVAILABLE";
-                }
+                deviceDetails.state = d.state || "IN_USE";
               }
             }
+
             return deviceDetails;
           } catch (err) {
             console.warn(`⚠️ Failed detail call for ${d.descriptor}:`, err);
-            return { ...d, region, sessionId: null, state: "AVAILABLE" };
+            return { ...d, region, sessionId: null, state: d.state || "AVAILABLE" };
           }
         })
       );
