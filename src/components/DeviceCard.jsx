@@ -95,11 +95,11 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog })
     }
   };
 
-  // Handle "Launch Live Test" click
-  const handleLaunchLiveTest = async (e) => {
+  // Handle "Launch Live View" click
+  const handleLaunchLiveView = async (e) => {
     e.preventDefault();
     if (!hasActiveSession || !device.sessionId) {
-      console.warn("No active session to launch live test");
+      console.warn("No active session to launch live view");
       return;
     }
 
@@ -137,7 +137,7 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog })
         console.warn("⚠️ No liveViewUrl found in session response");
       }
     } catch (err) {
-      console.error("❌ Error launching live test:", err);
+      console.error("❌ Error launching live view:", err);
     }
   };
 
@@ -198,9 +198,9 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog })
               href="#"
               className="device-link"
               aria-disabled={!hasActiveSession}
-              onClick={handleLaunchLiveTest}
+              onClick={handleLaunchLiveView}
             >
-              Launch Live Test
+              Launch Live View
             </a>
             <a
               href="#"

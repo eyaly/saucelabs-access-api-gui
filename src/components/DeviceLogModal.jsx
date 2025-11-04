@@ -5,6 +5,7 @@ export default function DeviceLogModal({ websocketUrl, deviceName, sessionId, on
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const isPausedRef = useRef(false);
   const wsRef = useRef(null);
   const logContainerRef = useRef(null);
@@ -193,6 +194,32 @@ export default function DeviceLogModal({ websocketUrl, deviceName, sessionId, on
     setLogs([]);
   };
 
+  // Filter logs based on search term
+  const filteredLogs = searchTerm
+    ? logs.filter((log) => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          log.message.toLowerCase().includes(searchLower) ||
+          (log.timestamp && log.timestamp.toLowerCase().includes(searchLower))
+        );
+      })
+    : logs;
+
+  // Highlight matching text in log message
+  const highlightText = (text, search) => {
+    if (!search) return text;
+    const parts = text.split(new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+    return parts.map((part, i) =>
+      part.toLowerCase() === search.toLowerCase() ? (
+        <mark key={i} style={{ backgroundColor: "#fbbf24", color: "#000", padding: "0 2px" }}>
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
   return (
     <>
       {/* Light backdrop */}
@@ -334,6 +361,62 @@ export default function DeviceLogModal({ websocketUrl, deviceName, sessionId, on
           </div>
         </div>
 
+        {/* Search bar */}
+        <div
+          style={{
+            padding: "8px 12px",
+            borderBottom: "1px solid #333",
+            backgroundColor: "#252525",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search logs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              flex: 1,
+              padding: "6px 10px",
+              backgroundColor: "#1e1e1e",
+              border: "1px solid #4b5563",
+              borderRadius: "4px",
+              color: "#d4d4d4",
+              fontSize: "12px",
+              fontFamily: "monospace",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearchTerm("");
+              }
+            }}
+          />
+          {searchTerm && (
+            <>
+              <span style={{ color: "#9ca3af", fontSize: "11px" }}>
+                {filteredLogs.length} / {logs.length}
+              </span>
+              <button
+                onClick={() => setSearchTerm("")}
+                style={{
+                  padding: "4px 8px",
+                  backgroundColor: "transparent",
+                  color: "#9ca3af",
+                  border: "1px solid #4b5563",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                }}
+                title="Clear search (Esc)"
+              >
+                ✕
+              </button>
+            </>
+          )}
+        </div>
+
         {/* Log content */}
         <div
           ref={logContainerRef}
@@ -354,9 +437,14 @@ export default function DeviceLogModal({ websocketUrl, deviceName, sessionId, on
           {logs.length === 0 && !error && (
             <div style={{ color: "#6b7280", fontStyle: "italic" }}>Waiting for logs...</div>
           )}
-          {logs.map((log, idx) => (
+          {filteredLogs.length === 0 && logs.length > 0 && searchTerm && (
+            <div style={{ color: "#6b7280", fontStyle: "italic" }}>
+              No logs found matching "{searchTerm}"
+            </div>
+          )}
+          {filteredLogs.map((log, idx) => (
             <div
-              key={idx}
+              key={`${log.timestamp}-${idx}-${log.message.substring(0, 20)}`}
               style={{
                 marginBottom: "4px",
                 color: log.type === "system" ? "#9ca3af" : "#d4d4d4",
@@ -367,7 +455,7 @@ export default function DeviceLogModal({ websocketUrl, deviceName, sessionId, on
               {log.timestamp && (
                 <span style={{ color: "#6b7280", marginRight: "8px" }}>[{log.timestamp}]</span>
               )}
-              {log.message}
+              {highlightText(log.message, searchTerm)}
             </div>
           ))}
         </div>
