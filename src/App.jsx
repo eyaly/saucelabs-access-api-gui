@@ -1,12 +1,10 @@
 import React, { useState } from "react";
 import Devices from "./pages/Devices";
 import Settings from "./pages/Settings";
-import LiveViewModal from "./pages/LiveView";
 import DeviceLogModal from "./components/DeviceLogModal";
 
 export default function App() {
   const [page, setPage] = useState("devices");
-  const [liveViews, setLiveViews] = useState([]); // Array of { id, url, deviceName }
   const [deviceLogs, setDeviceLogs] = useState([]); // Array of { id, websocketUrl, deviceName, sessionId }
 
   // Handle "View Device Log" click
@@ -131,19 +129,6 @@ export default function App() {
       >
         {page === "devices" && <Devices onViewDeviceLog={handleViewDeviceLog} />}
         {page === "settings" && <Settings />}
-        
-        {/* Render all live view modals */}
-        {liveViews.map((liveView, index) => (
-          <LiveViewModal
-            key={liveView.id}
-            liveViewUrl={liveView.url}
-            deviceName={liveView.deviceName}
-            index={index}
-            onClose={() => {
-              setLiveViews((prev) => prev.filter((lv) => lv.id !== liveView.id));
-            }}
-          />
-        ))}
 
         {/* Render all device log modals */}
         {deviceLogs.map((log, index) => (
