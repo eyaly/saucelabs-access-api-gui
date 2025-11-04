@@ -15,6 +15,15 @@ export default function DeviceActionsSidebar({ device, onClose }) {
     return null;
   }
 
+  const handleCopySessionId = () => {
+    navigator.clipboard.writeText(device.sessionId).then(() => {
+      // Could show a toast notification here, but for now just copy silently
+      alert("Session ID copied to clipboard!");
+    }).catch(() => {
+      alert("Failed to copy Session ID");
+    });
+  };
+
   const handleInstallApp = async () => {
     if (!installAppPath.trim()) {
       alert("Please enter an app path");
@@ -22,26 +31,39 @@ export default function DeviceActionsSidebar({ device, onClose }) {
     }
 
     setInstalling(true);
+    setApiResponse(null); // Clear previous response
     try {
       const creds = await window.api.getCreds();
       const region = device.region || creds.region || "eu-central-1";
-      const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/install`;
+      const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/installApp`;
 
       const response = await window.api.fetchSauce({
         url,
         creds,
         method: "POST",
-        body: { appPath: installAppPath },
+        body: {
+          app: installAppPath.trim(),
+          enableInstrumentation: true,
+          launchAfterInstall: true,
+        },
+      });
+
+      // Show response in Custom API Request section
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
       });
 
       if (response.ok) {
-        alert("App installed successfully!");
         setInstallAppPath("");
-      } else {
-        alert(`Failed to install app: ${response.status} - ${JSON.stringify(response.data)}`);
       }
     } catch (err) {
-      alert(`Error installing app: ${err.message}`);
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
     } finally {
       setInstalling(false);
     }
@@ -124,7 +146,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
       }
 
       let body = null;
-      if (apiBody.trim() && (apiMethod === "POST" || apiMethod === "PUT" || apiMethod === "PATCH")) {
+      if (apiBody.trim() && apiMethod === "POST") {
         try {
           body = JSON.parse(apiBody);
         } catch {
@@ -216,19 +238,39 @@ export default function DeviceActionsSidebar({ device, onClose }) {
           <label style={{ display: "block", color: "#9ca3af", fontSize: "12px", marginBottom: "6px" }}>
             Session ID
           </label>
-          <div
-            style={{
-              padding: "8px 12px",
-              backgroundColor: "#1e1e1e",
-              border: "1px solid #4b5563",
-              borderRadius: "4px",
-              color: "#d4d4d4",
-              fontSize: "12px",
-              fontFamily: "monospace",
-              wordBreak: "break-all",
-            }}
-          >
-            {device.sessionId}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <div
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                backgroundColor: "#1e1e1e",
+                border: "1px solid #4b5563",
+                borderRadius: "4px",
+                color: "#d4d4d4",
+                fontSize: "12px",
+                fontFamily: "monospace",
+                wordBreak: "break-all",
+              }}
+            >
+              {device.sessionId}
+            </div>
+            <button
+              onClick={handleCopySessionId}
+              style={{
+                padding: "8px 12px",
+                backgroundColor: "#3b82f6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: 500,
+                fontSize: "12px",
+                whiteSpace: "nowrap",
+              }}
+              title="Copy Session ID"
+            >
+              Copy
+            </button>
           </div>
         </div>
 
@@ -356,9 +398,6 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             >
               <option value="GET">GET</option>
               <option value="POST">POST</option>
-              <option value="PUT">PUT</option>
-              <option value="DELETE">DELETE</option>
-              <option value="PATCH">PATCH</option>
             </select>
           </div>
 
@@ -385,8 +424,8 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             </div>
           </div>
 
-          {/* Request Body (for POST/PUT/PATCH) */}
-          {(apiMethod === "POST" || apiMethod === "PUT" || apiMethod === "PATCH") && (
+          {/* Request Body (for POST) */}
+          {apiMethod === "POST" && (
             <div style={{ marginBottom: "8px" }}>
               <label style={{ display: "block", color: "#9ca3af", fontSize: "12px", marginBottom: "4px" }}>
                 Request Body (JSON)
