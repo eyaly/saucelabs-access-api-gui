@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaAndroid, FaApple } from "react-icons/fa6";
 
-export default function DeviceCard({ device, onToggleSession, onViewDeviceLog }) {
+export default function DeviceCard({ device, onToggleSession, onViewDeviceLog, onMoreActions }) {
   const [connected, setConnected] = useState(!!device.sessionId);
 
   // Keep toggle synced with current sessionId after refresh
@@ -80,6 +80,18 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog })
       inUseText = device.inUseBy;
     }
   }
+
+  // Handle "More Actions" click
+  const handleMoreActions = (e) => {
+    e.preventDefault();
+    if (!hasActiveSession || !device.sessionId) {
+      console.warn("No active session for more actions");
+      return;
+    }
+    if (onMoreActions) {
+      onMoreActions(device);
+    }
+  };
 
   // Handle "View Device Log" click
   const handleViewDeviceLog = async (e) => {
@@ -209,6 +221,14 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog })
               onClick={handleViewDeviceLog}
             >
               View Device Log
+            </a>
+            <a
+              href="#"
+              className="device-link"
+              aria-disabled={!hasActiveSession}
+              onClick={handleMoreActions}
+            >
+              More Actions
             </a>
           </div>
         </div>

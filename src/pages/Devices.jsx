@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import DeviceCard from "../components/DeviceCard";
+import DeviceActionsSidebar from "../components/DeviceActionsSidebar";
 
 export default function Devices({ onViewDeviceLog }) {
   const [devices, setDevices] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedDeviceForActions, setSelectedDeviceForActions] = useState(null);
+  const [sortBy, setSortBy] = useState("status"); // "status" or "name"
 
   // 🔁 Fetch device list
   const fetchDevices = async () => {
@@ -64,38 +67,39 @@ export default function Devices({ onViewDeviceLog }) {
               console.warn(`⚠️ Could not fetch details for ${d.descriptor}`);
             }
 
-            // If device state is IN_USE, check for active sessions
-            if (d.state === "IN_USE") {
-              const sessionsUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions?deviceName=${d.descriptor}`;
-              try {
-                const sessionsResponse = await window.api.fetchSauce({
-                  url: sessionsUrl,
-                  creds,
-                  method: "GET",
-                });
-                // Handle both "items" and "sessions" response formats
-                const sessions = sessionsResponse.data?.items || sessionsResponse.data?.sessions || [];
-                if (sessions.length > 0) {
-                  const activeSession = sessions.find(s => s.state === "ACTIVE");
-                  if (activeSession) {
-                    // Found an ACTIVE session - set sessionId, device will be blue and toggle on
-                    deviceDetails.sessionId = activeSession.id;
-                    deviceDetails.state = "IN_USE";
-                    // inUseBy is already set from status API response
-                  } else {
-                    // No active session found - device is IN_USE but no session for current user
-                    deviceDetails.state = "IN_USE";
-                    // inUseBy is already set from status API response
-                  }
-                } else {
-                  // No sessions found
+            // Check for active sessions for all devices (not just IN_USE)
+            // Look for ACTIVE sessions - ignore CLOSED sessions
+            const sessionsUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions?deviceName=${d.descriptor}`;
+            try {
+              const sessionsResponse = await window.api.fetchSauce({
+                url: sessionsUrl,
+                creds,
+                method: "GET",
+              });
+              // Handle both "items" and "sessions" response formats
+              const sessions = sessionsResponse.data?.items || sessionsResponse.data?.sessions || [];
+              if (sessions.length > 0) {
+                // Find ACTIVE session (state === "ACTIVE"), ignore CLOSED sessions
+                // Multiple sessions can exist (CLOSED and ACTIVE) - we only want ACTIVE ones
+                const activeSession = sessions.find(s => (s.state || "").toUpperCase() === "ACTIVE");
+                if (activeSession) {
+                  // Found an ACTIVE session - use this sessionId
+                  // Device will be blue and toggle on (connected state)
+                  deviceDetails.sessionId = activeSession.id;
                   deviceDetails.state = "IN_USE";
                   // inUseBy is already set from status API response
+                } else {
+                  // No ACTIVE session found - only CLOSED sessions exist
+                  // Ignore CLOSED sessions, keep device state as is from status API
+                  deviceDetails.state = d.state || "AVAILABLE";
                 }
-              } catch (sessionErr) {
-                console.warn(`⚠️ Failed to fetch session for ${d.descriptor}:`, sessionErr);
-                deviceDetails.state = d.state || "IN_USE";
+              } else {
+                // No sessions found at all
+                deviceDetails.state = d.state || "AVAILABLE";
               }
+            } catch (sessionErr) {
+              console.warn(`⚠️ Failed to fetch session for ${d.descriptor}:`, sessionErr);
+              deviceDetails.state = d.state || "AVAILABLE";
             }
 
             return deviceDetails;
@@ -198,32 +202,149 @@ export default function Devices({ onViewDeviceLog }) {
     return deviceName.includes(searchLower);
   });
 
+  // 📊 Sort devices by status: Connected > Available > In Use > Others
+  const sortedDevices = [...filteredDevices].sort((a, b) => {
+    if (sortBy === "status") {
+      // Priority order: Connected (has sessionId) > Available > In Use > Others
+      const getPriority = (device) => {
+        // 1. Connected devices (has sessionId)
+        if (device.sessionId) return 1;
+        
+        // 2. Available devices
+        const state = (device.state || "").toUpperCase();
+        if (state === "AVAILABLE") return 2;
+        
+        // 3. In Use devices (by others - has inUseBy but no sessionId)
+        if (device.inUseBy && !device.sessionId) return 3;
+        if (state.includes("IN_USE") || state.includes("INUSE")) return 3;
+        
+        // 4. All others (CLEANING, CLEANUP, etc.)
+        return 4;
+      };
+
+      const priorityA = getPriority(a);
+      const priorityB = getPriority(b);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // If same priority, sort by name
+      const nameA = (a.name || a.descriptor || "").toLowerCase();
+      const nameB = (b.name || b.descriptor || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    } else {
+      // Sort by name
+      const nameA = (a.name || a.descriptor || "").toLowerCase();
+      const nameB = (b.name || b.descriptor || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+  });
+
+  // Handle "More Actions" click
+  const handleMoreActions = (device) => {
+    setSelectedDeviceForActions(device);
+  };
+
   return (
-    <div className="page">
-      <h1 className="page-title">Device Catalog</h1>
+    <div className="page" style={{ position: "relative", display: "flex" }}>
+      <div style={{ flex: 1, marginRight: selectedDeviceForActions ? "400px" : "0", transition: "margin-right 0.3s ease" }}>
+        <h1 className="page-title">Device Catalog</h1>
 
-      <div className="search-refresh">
-        <input
-          className="search-input"
-          placeholder="Search devices"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+        <div style={{ display: "flex", gap: "20px", alignItems: "flex-end", marginBottom: "20px" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "14px", fontWeight: 600, color: "#333" }}>
+              Search Devices
+            </label>
+            <div style={{ height: "40px", display: "flex", alignItems: "stretch" }}>
+              <input
+                type="text"
+                placeholder="Search devices"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ 
+                  flex: 1,
+                  height: "100%",
+                  paddingTop: "0",
+                  paddingBottom: "0",
+                  paddingLeft: "14px",
+                  paddingRight: "14px",
+                  fontSize: "16px",
+                  border: "2px solid #f4a300",
+                  borderRadius: "10px",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  minWidth: "260px",
+                  boxSizing: "border-box",
+                  margin: 0,
+                  lineHeight: "normal",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "14px", fontWeight: 600, color: "#333" }}>
+              SORT BY
+            </label>
+            <div style={{ height: "40px", display: "flex", alignItems: "stretch" }}>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                style={{
+                  height: "100%",
+                  paddingTop: "0",
+                  paddingBottom: "0",
+                  paddingLeft: "12px",
+                  paddingRight: "12px",
+                  fontSize: "14px",
+                  border: "2px solid #f4a300",
+                  borderRadius: "10px",
+                  outline: "none",
+                  backgroundColor: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  minWidth: "120px",
+                  width: "120px",
+                  boxSizing: "border-box",
+                  margin: 0,
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  MozAppearance: "none",
+                  lineHeight: "normal",
+                  fontFamily: "inherit",
+                }}
+              >
+                <option value="status">Status</option>
+                <option value="name">A to Z</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {loading && <p>🔄 Loading devices...</p>}
+        {error && <p className="text-red-600">❌ {error}</p>}
+
+        <div className="cards">
+          {sortedDevices.map((device) => (
+            <DeviceCard
+              key={device.descriptor}
+              device={device}
+              onToggleSession={handleToggleSession}
+              onViewDeviceLog={onViewDeviceLog}
+              onMoreActions={handleMoreActions}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Actions Sidebar */}
+      {selectedDeviceForActions && (
+        <DeviceActionsSidebar
+          device={devices.find(d => d.descriptor === selectedDeviceForActions.descriptor) || selectedDeviceForActions}
+          onClose={() => setSelectedDeviceForActions(null)}
         />
-      </div>
-
-      {loading && <p>🔄 Loading devices...</p>}
-      {error && <p className="text-red-600">❌ {error}</p>}
-
-      <div className="cards">
-        {filteredDevices.map((device) => (
-          <DeviceCard
-            key={device.descriptor}
-            device={device}
-            onToggleSession={handleToggleSession}
-            onViewDeviceLog={onViewDeviceLog}
-          />
-        ))}
-      </div>
+      )}
     </div>
   );
 }
