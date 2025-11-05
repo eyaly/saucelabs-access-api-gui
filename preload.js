@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld("api", {
   openLiveView: (url) => ipcRenderer.invoke("openLiveView", url),
   closeLiveView: () => ipcRenderer.invoke("closeLiveView"),
 
+  // 💾 Save screenshot to file system
+  saveScreenshot: (dataUrl) => ipcRenderer.invoke("saveScreenshot", dataUrl),
+
   // 🔹 New region getter
   getRegion: () => ipcRenderer.invoke("getRegion"),
 });

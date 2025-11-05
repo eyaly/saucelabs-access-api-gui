@@ -1,19 +1,23 @@
 import React, { useState } from "react";
 
 export default function DeviceActionsSidebar({ device, onClose }) {
+  const [selectedAction, setSelectedAction] = useState("installApp"); // "installApp", "screenshot", "sessionDetails", "runAdbShellCommand"
   const [installAppPath, setInstallAppPath] = useState("");
-  const [installing, setInstalling] = useState(false);
+  const [adbShellCommand, setAdbShellCommand] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   const [apiMethod, setApiMethod] = useState("GET");
   const [apiPath, setApiPath] = useState("");
   const [apiBody, setApiBody] = useState("");
   const [apiResponse, setApiResponse] = useState(null);
   const [apiLoading, setApiLoading] = useState(false);
-  const [screenshotLoading, setScreenshotLoading] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState(null);
 
   if (!device || !device.sessionId) {
     return null;
   }
+
+  // Check if device is Android
+  const isAndroid = !(device.os || "").toUpperCase().includes("IOS");
 
   const handleCopySessionId = () => {
     navigator.clipboard.writeText(device.sessionId).then(() => {
@@ -30,25 +34,30 @@ export default function DeviceActionsSidebar({ device, onClose }) {
       return;
     }
 
-    setInstalling(true);
-    setApiResponse(null); // Clear previous response
-    try {
-      const creds = await window.api.getCreds();
-      const region = device.region || creds.region || "eu-central-1";
-      const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/installApp`;
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/installApp`;
+    const body = {
+      app: installAppPath.trim(),
+      enableInstrumentation: true,
+      launchAfterInstall: true,
+    };
 
+    // Populate Custom API Request section
+    setApiMethod("POST");
+    setApiPath(`device/installApp`);
+    setApiBody(JSON.stringify(body, null, 2));
+
+    try {
       const response = await window.api.fetchSauce({
         url,
         creds,
         method: "POST",
-        body: {
-          app: installAppPath.trim(),
-          enableInstrumentation: true,
-          launchAfterInstall: true,
-        },
+        body,
       });
 
-      // Show response in Custom API Request section
       setApiResponse({
         status: response.status,
         ok: response.ok,
@@ -65,35 +74,48 @@ export default function DeviceActionsSidebar({ device, onClose }) {
         error: err.message,
       });
     } finally {
-      setInstalling(false);
+      setActionLoading(false);
     }
   };
 
   const handleTakeScreenshot = async () => {
-    setScreenshotLoading(true);
+    setActionLoading(true);
     setScreenshotUrl(null);
-    try {
-      const creds = await window.api.getCreds();
-      const region = device.region || creds.region || "eu-central-1";
-      const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/screenshot`;
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/takeScreenshot`;
 
+    // Populate Custom API Request section
+    setApiMethod("POST");
+    setApiPath(`device/takeScreenshot`);
+    setApiBody("");
+
+    try {
       const response = await window.api.fetchSauce({
         url,
         creds,
-        method: "GET",
+        method: "POST",
+        headers: {
+          Accept: "*/*", // Accept any content type for screenshot (image/png, image/jpeg, etc.)
+        },
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
       });
 
       if (response.ok) {
         // Handle different response formats
         let imageUrl = null;
         if (typeof response.data === "string") {
-          // Might be base64 or URL string
           if (response.data.startsWith("data:")) {
             imageUrl = response.data;
           } else if (response.data.startsWith("http")) {
             imageUrl = response.data;
           } else {
-            // Assume base64
             imageUrl = `data:image/png;base64,${response.data}`;
           }
         } else if (response.data?.screenshot) {
@@ -101,7 +123,6 @@ export default function DeviceActionsSidebar({ device, onClose }) {
         } else if (response.data?.url) {
           imageUrl = response.data.url;
         } else if (response.data?.data) {
-          // Base64 data
           imageUrl = `data:image/png;base64,${response.data.data}`;
         } else if (response.data?.image) {
           imageUrl = response.data.image;
@@ -109,17 +130,99 @@ export default function DeviceActionsSidebar({ device, onClose }) {
         
         if (imageUrl) {
           setScreenshotUrl(imageUrl);
-        } else {
-          alert(`Screenshot API returned unexpected format. Check console for details.`);
-          console.log("Screenshot response:", response.data);
         }
-      } else {
-        alert(`Failed to take screenshot: ${response.status} - ${JSON.stringify(response.data)}`);
       }
     } catch (err) {
-      alert(`Error taking screenshot: ${err.message}`);
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
     } finally {
-      setScreenshotLoading(false);
+      setActionLoading(false);
+    }
+  };
+
+  const handleRunAdbShellCommand = async () => {
+    if (!adbShellCommand.trim()) {
+      alert("Please enter an ADB shell command");
+      return;
+    }
+
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/executeShellCommand`;
+    const body = {
+      adbShellCommand: adbShellCommand.trim(),
+    };
+
+    // Populate Custom API Request section
+    setApiMethod("POST");
+    setApiPath(`device/executeShellCommand`);
+    setApiBody(JSON.stringify(body, null, 2));
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "POST",
+        body,
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+
+      if (response.ok) {
+        setAdbShellCommand("");
+      }
+    } catch (err) {
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGetSessionDetails = async () => {
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}`;
+
+    // Populate Custom API Request section - just the path without base URL
+    setApiMethod("GET");
+    setApiPath(`rdc/v2/sessions/${device.sessionId}`);
+    setApiBody("");
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "GET",
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+    } catch (err) {
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -135,12 +238,16 @@ export default function DeviceActionsSidebar({ device, onClose }) {
       const creds = await window.api.getCreds();
       const region = device.region || creds.region || "eu-central-1";
       
-      // Build full URL - handle both relative and absolute paths
+      // Build full URL - handle different path formats
       let fullUrl;
       if (apiPath.startsWith("http")) {
+        // Full URL provided
         fullUrl = apiPath;
+      } else if (apiPath.startsWith("rdc/v2/sessions")) {
+        // Full API path like "rdc/v2/sessions/{sessionId}" or "rdc/v2/sessions/{sessionId}/something"
+        fullUrl = `https://api.${region}.saucelabs.com/${apiPath}`;
       } else {
-        // Remove leading slash if present
+        // Relative path - append to base session endpoint
         const cleanPath = apiPath.startsWith("/") ? apiPath.substring(1) : apiPath;
         fullUrl = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/${cleanPath}`;
       }
@@ -293,84 +400,210 @@ export default function DeviceActionsSidebar({ device, onClose }) {
           </div>
         </div>
 
-        {/* Install App */}
+        {/* Built-in Actions */}
         <div style={{ marginBottom: "24px" }}>
-          <h4 style={{ color: "#fff", fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
-            Install App
-          </h4>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              type="text"
-              placeholder="Enter app path (e.g., /path/to/app.apk)"
-              value={installAppPath}
-              onChange={(e) => setInstallAppPath(e.target.value)}
-              style={{
-                flex: 1,
-                padding: "8px 10px",
-                backgroundColor: "#1e1e1e",
-                border: "1px solid #4b5563",
-                borderRadius: "4px",
-                color: "#d4d4d4",
-                fontSize: "12px",
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleInstallApp();
-                }
-              }}
-            />
-            <button
-              onClick={handleInstallApp}
-              disabled={installing}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: installing ? "#4b5563" : "#3b82f6",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: installing ? "not-allowed" : "pointer",
-                fontWeight: 500,
-                fontSize: "12px",
-              }}
-            >
-              {installing ? "Installing..." : "Install"}
-            </button>
-          </div>
-        </div>
-
-        {/* Take Screenshot */}
-        <div style={{ marginBottom: "24px" }}>
-          <h4 style={{ color: "#fff", fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
-            Screenshot
-          </h4>
-          <button
-            onClick={handleTakeScreenshot}
-            disabled={screenshotLoading}
+          <label style={{ display: "block", color: "#9ca3af", fontSize: "12px", marginBottom: "6px" }}>
+            Action
+          </label>
+          <select
+            value={selectedAction}
+            onChange={(e) => {
+              setSelectedAction(e.target.value);
+              setApiResponse(null);
+              setScreenshotUrl(null);
+              setAdbShellCommand("");
+            }}
             style={{
               width: "100%",
-              padding: "8px 16px",
-              backgroundColor: screenshotLoading ? "#4b5563" : "#10b981",
-              color: "#fff",
-              border: "none",
+              padding: "8px 10px",
+              backgroundColor: "#1e1e1e",
+              border: "1px solid #4b5563",
               borderRadius: "4px",
-              cursor: screenshotLoading ? "not-allowed" : "pointer",
-              fontWeight: 500,
+              color: "#d4d4d4",
               fontSize: "12px",
+              marginBottom: "12px",
             }}
           >
-            {screenshotLoading ? "Taking Screenshot..." : "Take Screenshot"}
-          </button>
-          {screenshotUrl && (
-            <div style={{ marginTop: "12px" }}>
-              <img
-                src={screenshotUrl}
-                alt="Screenshot"
+            <option value="installApp">Install App</option>
+            <option value="screenshot">Take Screenshot</option>
+            <option value="sessionDetails">Get Session Details</option>
+            {isAndroid && <option value="runAdbShellCommand">Run ADB Shell Command</option>}
+          </select>
+
+          {/* Install App Form */}
+          {selectedAction === "installApp" && (
+            <div>
+              <input
+                type="text"
+                placeholder="Enter app path (e.g., /path/to/app.apk)"
+                value={installAppPath}
+                onChange={(e) => setInstallAppPath(e.target.value)}
                 style={{
                   width: "100%",
+                  padding: "8px 10px",
+                  backgroundColor: "#1e1e1e",
                   border: "1px solid #4b5563",
                   borderRadius: "4px",
+                  color: "#d4d4d4",
+                  fontSize: "12px",
+                  marginBottom: "8px",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleInstallApp();
+                  }
                 }}
               />
+              <button
+                onClick={handleInstallApp}
+                disabled={actionLoading || !installAppPath.trim()}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading || !installAppPath.trim() ? "#4b5563" : "#3b82f6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading || !installAppPath.trim() ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Installing..." : "Install"}
+              </button>
+            </div>
+          )}
+
+          {/* Take Screenshot */}
+          {selectedAction === "screenshot" && (
+            <div>
+              <button
+                onClick={handleTakeScreenshot}
+                disabled={actionLoading}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading ? "#4b5563" : "#10b981",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Taking Screenshot..." : "Take Screenshot"}
+              </button>
+              {screenshotUrl && (
+                <div style={{ marginTop: "12px" }}>
+                  <img
+                    src={screenshotUrl}
+                    alt="Screenshot"
+                    style={{
+                      width: "100%",
+                      border: "1px solid #4b5563",
+                      borderRadius: "4px",
+                      marginBottom: "8px",
+                    }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!screenshotUrl) return;
+                      try {
+                        const result = await window.api.saveScreenshot(screenshotUrl);
+                        if (result.success) {
+                          alert(`Screenshot saved to: ${result.filePath}`);
+                        } else if (!result.cancelled) {
+                          alert(`Failed to save screenshot: ${result.error || "Unknown error"}`);
+                        }
+                      } catch (err) {
+                        alert(`Error saving screenshot: ${err.message}`);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 16px",
+                      backgroundColor: "#3b82f6",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      fontSize: "12px",
+                    }}
+                  >
+                    💾 Download Screenshot
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Get Session Details */}
+          {selectedAction === "sessionDetails" && (
+            <div>
+              <button
+                onClick={handleGetSessionDetails}
+                disabled={actionLoading}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading ? "#4b5563" : "#8b5cf6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Loading..." : "Get Session Details"}
+              </button>
+            </div>
+          )}
+
+          {/* Run ADB Shell Command (Android only) */}
+          {selectedAction === "runAdbShellCommand" && isAndroid && (
+            <div>
+              <input
+                type="text"
+                placeholder="Enter ADB shell command (e.g., ls -la, pm list packages)"
+                value={adbShellCommand}
+                onChange={(e) => setAdbShellCommand(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  backgroundColor: "#1e1e1e",
+                  border: "1px solid #4b5563",
+                  borderRadius: "4px",
+                  color: "#d4d4d4",
+                  fontSize: "12px",
+                  marginBottom: "8px",
+                  fontFamily: "monospace",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleRunAdbShellCommand();
+                  }
+                }}
+              />
+              <button
+                onClick={handleRunAdbShellCommand}
+                disabled={actionLoading || !adbShellCommand.trim()}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading || !adbShellCommand.trim() ? "#4b5563" : "#f59e0b",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading || !adbShellCommand.trim() ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Running..." : "Run ADB Command"}
+              </button>
             </div>
           )}
         </div>
@@ -405,7 +638,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
           <div style={{ marginBottom: "8px" }}>
             <input
               type="text"
-              placeholder="API path (e.g., screenshot, install, or full URL)"
+              placeholder="API path (e.g., screenshot, device/installApp, or rdc/v2/sessions/{sessionId})"
               value={apiPath}
               onChange={(e) => setApiPath(e.target.value)}
               style={{
@@ -420,7 +653,13 @@ export default function DeviceActionsSidebar({ device, onClose }) {
               }}
             />
             <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "4px" }}>
-              Relative to: /rdc/v2/sessions/{device.sessionId}/
+              {apiPath.startsWith("http") ? (
+                <>Full URL provided</>
+              ) : apiPath.startsWith("rdc/v2/sessions") ? (
+                <>Will be prefixed with: https://api.{(device.region || "eu-central-1")}.saucelabs.com/</>
+              ) : (
+                <>Will be prefixed with: https://api.{(device.region || "eu-central-1")}.saucelabs.com/rdc/v2/sessions/{device.sessionId}/</>
+              )}
             </div>
           </div>
 
