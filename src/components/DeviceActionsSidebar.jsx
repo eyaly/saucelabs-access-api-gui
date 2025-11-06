@@ -11,6 +11,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
   const [apiResponse, setApiResponse] = useState(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState(null);
+  const [sessionIdCopied, setSessionIdCopied] = useState(false);
 
   if (!device || !device.sessionId) {
     return null;
@@ -21,10 +22,12 @@ export default function DeviceActionsSidebar({ device, onClose }) {
 
   const handleCopySessionId = () => {
     navigator.clipboard.writeText(device.sessionId).then(() => {
-      // Could show a toast notification here, but for now just copy silently
-      alert("Session ID copied to clipboard!");
+      setSessionIdCopied(true);
+      setTimeout(() => {
+        setSessionIdCopied(false);
+      }, 2000); // Revert after 2 seconds
     }).catch(() => {
-      alert("Failed to copy Session ID");
+      // Silently fail - could add error state if needed
     });
   };
 
@@ -365,7 +368,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
               onClick={handleCopySessionId}
               style={{
                 padding: "8px 12px",
-                backgroundColor: "#3b82f6",
+                backgroundColor: sessionIdCopied ? "#4b5563" : "#3b82f6",
                 color: "#fff",
                 border: "none",
                 borderRadius: "4px",
@@ -373,10 +376,11 @@ export default function DeviceActionsSidebar({ device, onClose }) {
                 fontWeight: 500,
                 fontSize: "12px",
                 whiteSpace: "nowrap",
+                transition: "background-color 0.2s ease",
               }}
               title="Copy Session ID"
             >
-              Copy
+              {sessionIdCopied ? "Copied" : "Copy"}
             </button>
           </div>
         </div>
