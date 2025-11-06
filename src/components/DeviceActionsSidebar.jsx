@@ -15,6 +15,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
   const [showStorageFiles, setShowStorageFiles] = useState(false);
   const [storageFiles, setStorageFiles] = useState([]);
   const [loadingStorageFiles, setLoadingStorageFiles] = useState(false);
+  const [openUrl, setOpenUrl] = useState("");
 
   if (!device || !device.sessionId) {
     return null;
@@ -320,6 +321,54 @@ export default function DeviceActionsSidebar({ device, onClose }) {
     }
   };
 
+  const handleOpenUrl = async () => {
+    if (!openUrl.trim()) {
+      alert("Please enter a URL");
+      return;
+    }
+
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/openUrl`;
+    const body = {
+      url: openUrl.trim(),
+    };
+
+    // Populate Custom API Request section
+    setApiMethod("POST");
+    setApiPath(`device/openUrl`);
+    setApiBody(JSON.stringify(body, null, 2));
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "POST",
+        body,
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+
+      if (response.ok) {
+        setOpenUrl("");
+      }
+    } catch (err) {
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCustomApiRequest = async () => {
     if (!apiPath.trim()) {
       alert("Please enter an API path");
@@ -507,6 +556,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
               setApiResponse(null);
               setScreenshotUrl(null);
               setAdbShellCommand("");
+              setOpenUrl("");
             }}
             style={{
               width: "100%",
@@ -523,6 +573,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             <option value="screenshot">Take Screenshot</option>
             <option value="sessionDetails">Get Session Details</option>
             <option value="listAppInstallations">List App Installations</option>
+            <option value="openUrl">Open a URL</option>
             {isAndroid && <option value="runAdbShellCommand">Run ADB Shell Command</option>}
           </select>
 
@@ -800,6 +851,50 @@ export default function DeviceActionsSidebar({ device, onClose }) {
                 }}
               >
                 {actionLoading ? "Loading..." : "List App Installations"}
+              </button>
+            </div>
+          )}
+
+          {/* Open a URL */}
+          {selectedAction === "openUrl" && (
+            <div>
+              <input
+                type="text"
+                placeholder="Enter URL (e.g., https://example.com)"
+                value={openUrl}
+                onChange={(e) => setOpenUrl(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  backgroundColor: "#1e1e1e",
+                  border: "1px solid #4b5563",
+                  borderRadius: "4px",
+                  color: "#d4d4d4",
+                  fontSize: "12px",
+                  marginBottom: "8px",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleOpenUrl();
+                  }
+                }}
+              />
+              <button
+                onClick={handleOpenUrl}
+                disabled={actionLoading || !openUrl.trim()}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading || !openUrl.trim() ? "#4b5563" : "#10b981",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading || !openUrl.trim() ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Opening..." : "Open URL"}
               </button>
             </div>
           )}
