@@ -642,7 +642,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
           <div style={{ marginBottom: "8px" }}>
             <input
               type="text"
-              placeholder="API path (e.g., screenshot, device/installApp, or rdc/v2/sessions/{sessionId})"
+              placeholder="API path"
               value={apiPath}
               onChange={(e) => setApiPath(e.target.value)}
               style={{
