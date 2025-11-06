@@ -29,6 +29,7 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog, o
       case "eu-central-1":
         return "EU";
       case "us-west-1":
+      case "us-east-4":
         return "US";
       default:
         return device.region || "N/A";

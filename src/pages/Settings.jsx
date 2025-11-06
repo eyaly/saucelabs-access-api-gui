@@ -97,6 +97,7 @@ export default function Settings() {
         >
           <option value="eu-central-1">🇪🇺 Europe (EU Central)</option>
           <option value="us-west-1">🇺🇸 United States (US West)</option>
+          <option value="us-east-4">🇺🇸 United States (US East)</option>
         </select>
       </div>
 

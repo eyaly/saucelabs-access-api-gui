@@ -79,7 +79,8 @@ ipcMain.handle("fetchSauce", async (_, { url, method = "GET", creds, body, heade
     const region = creds?.region || store.get("creds").region || "eu-central-1";
     const updatedUrl = url
       .replace("eu-central-1", region)
-      .replace("us-west-1", region);
+      .replace("us-west-1", region)
+      .replace("us-east-4", region);
 
     const headers = {
       Authorization:
