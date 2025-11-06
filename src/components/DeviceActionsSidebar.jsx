@@ -12,6 +12,9 @@ export default function DeviceActionsSidebar({ device, onClose }) {
   const [apiLoading, setApiLoading] = useState(false);
   const [screenshotUrl, setScreenshotUrl] = useState(null);
   const [sessionIdCopied, setSessionIdCopied] = useState(false);
+  const [showStorageFiles, setShowStorageFiles] = useState(false);
+  const [storageFiles, setStorageFiles] = useState([]);
+  const [loadingStorageFiles, setLoadingStorageFiles] = useState(false);
 
   if (!device || !device.sessionId) {
     return null;
@@ -29,6 +32,59 @@ export default function DeviceActionsSidebar({ device, onClose }) {
     }).catch(() => {
       // Silently fail - could add error state if needed
     });
+  };
+
+  const handleFetchStorageFiles = async () => {
+    setLoadingStorageFiles(true);
+    try {
+      const creds = await window.api.getCreds();
+      const region = device.region || creds.region || "eu-central-1";
+      const url = `https://api.${region}.saucelabs.com/v1/storage/files`;
+
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "GET",
+      });
+
+      if (response.ok && response.data) {
+        // Extract file names from response
+        let files = Array.isArray(response.data) 
+          ? response.data.map(item => item.name || item).filter(Boolean)
+          : response.data.items 
+          ? response.data.items.map(item => item.name || item).filter(Boolean)
+          : [];
+        
+        // Filter files based on device OS
+        if (isAndroid) {
+          // Android: show only .apk and .aab files
+          files = files.filter(fileName => {
+            const lowerName = fileName.toLowerCase();
+            return lowerName.endsWith('.apk') || lowerName.endsWith('.aab');
+          });
+        } else {
+          // iOS: show only .ipa files
+          files = files.filter(fileName => {
+            const lowerName = fileName.toLowerCase();
+            return lowerName.endsWith('.ipa');
+          });
+        }
+        
+        setStorageFiles(files);
+        setShowStorageFiles(true);
+      } else {
+        alert(`Failed to fetch storage files: ${response.status}`);
+      }
+    } catch (err) {
+      alert(`Error fetching storage files: ${err.message}`);
+    } finally {
+      setLoadingStorageFiles(false);
+    }
+  };
+
+  const handleSelectStorageFile = (fileName) => {
+    setInstallAppPath(`storage:filename=${fileName}`);
+    setShowStorageFiles(false);
   };
 
   const handleInstallApp = async () => {
@@ -211,6 +267,41 @@ export default function DeviceActionsSidebar({ device, onClose }) {
         url,
         creds,
         method: "GET",
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+    } catch (err) {
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleListAppInstallations = async () => {
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/device/listAppInstallations`;
+
+    // Populate Custom API Request section
+    setApiMethod("POST");
+    setApiPath(`device/listAppInstallations`);
+    setApiBody("");
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "POST",
       });
 
       setApiResponse({
@@ -431,33 +522,53 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             <option value="installApp">Install App</option>
             <option value="screenshot">Take Screenshot</option>
             <option value="sessionDetails">Get Session Details</option>
+            <option value="listAppInstallations">List App Installations</option>
             {isAndroid && <option value="runAdbShellCommand">Run ADB Shell Command</option>}
           </select>
 
           {/* Install App Form */}
           {selectedAction === "installApp" && (
             <div>
-              <input
-                type="text"
-                placeholder="Enter app path (e.g., /path/to/app.apk)"
-                value={installAppPath}
-                onChange={(e) => setInstallAppPath(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  backgroundColor: "#1e1e1e",
-                  border: "1px solid #4b5563",
-                  borderRadius: "4px",
-                  color: "#d4d4d4",
-                  fontSize: "12px",
-                  marginBottom: "8px",
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleInstallApp();
-                  }
-                }}
-              />
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                <input
+                  type="text"
+                  placeholder="Enter app path (e.g., /path/to/app.apk)"
+                  value={installAppPath}
+                  onChange={(e) => setInstallAppPath(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 10px",
+                    backgroundColor: "#1e1e1e",
+                    border: "1px solid #4b5563",
+                    borderRadius: "4px",
+                    color: "#d4d4d4",
+                    fontSize: "12px",
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleInstallApp();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleFetchStorageFiles}
+                  disabled={loadingStorageFiles}
+                  style={{
+                    padding: "8px 12px",
+                    backgroundColor: loadingStorageFiles ? "#4b5563" : "#8b5cf6",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: loadingStorageFiles ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Select from Sauce Labs storage"
+                >
+                  {loadingStorageFiles ? "Loading..." : "📁 Storage"}
+                </button>
+              </div>
               <button
                 onClick={handleInstallApp}
                 disabled={actionLoading || !installAppPath.trim()}
@@ -475,6 +586,110 @@ export default function DeviceActionsSidebar({ device, onClose }) {
               >
                 {actionLoading ? "Installing..." : "Install"}
               </button>
+
+              {/* Storage Files Modal */}
+              {showStorageFiles && (
+                <>
+                  <div
+                    style={{
+                      position: "fixed",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: "rgba(0, 0, 0, 0.5)",
+                      zIndex: 2000,
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setShowStorageFiles(false)}
+                  />
+                  <div
+                    style={{
+                      position: "fixed",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      width: "500px",
+                      maxHeight: "600px",
+                      backgroundColor: "#2d2d2d",
+                      border: "1px solid #4b5563",
+                      borderRadius: "8px",
+                      zIndex: 2001,
+                      display: "flex",
+                      flexDirection: "column",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "16px",
+                        borderBottom: "1px solid #4b5563",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <h3 style={{ margin: 0, color: "#fff", fontSize: "16px", fontWeight: 600 }}>
+                        Select File from Storage
+                      </h3>
+                      <button
+                        onClick={() => setShowStorageFiles(false)}
+                        style={{
+                          padding: "4px 10px",
+                          backgroundColor: "transparent",
+                          color: "#9ca3af",
+                          border: "1px solid #4b5563",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontSize: "12px",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        overflow: "auto",
+                        padding: "12px",
+                      }}
+                    >
+                      {storageFiles.length === 0 ? (
+                        <div style={{ color: "#9ca3af", textAlign: "center", padding: "20px" }}>
+                          No files found in storage
+                        </div>
+                      ) : (
+                        storageFiles.map((fileName, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleSelectStorageFile(fileName)}
+                            style={{
+                              padding: "12px",
+                              marginBottom: "8px",
+                              backgroundColor: "#1e1e1e",
+                              border: "1px solid #4b5563",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              color: "#d4d4d4",
+                              fontSize: "14px",
+                              transition: "background-color 0.2s",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = "#252525";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = "#1e1e1e";
+                            }}
+                          >
+                            {fileName}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -562,6 +777,29 @@ export default function DeviceActionsSidebar({ device, onClose }) {
                 }}
               >
                 {actionLoading ? "Loading..." : "Get Session Details"}
+              </button>
+            </div>
+          )}
+
+          {/* List App Installations */}
+          {selectedAction === "listAppInstallations" && (
+            <div>
+              <button
+                onClick={handleListAppInstallations}
+                disabled={actionLoading}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading ? "#4b5563" : "#f59e0b",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Loading..." : "List App Installations"}
               </button>
             </div>
           )}
