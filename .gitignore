@@ -42,4 +42,5 @@ build/
 # Electron
 coverage/
 .electron-builder/
+release/
 !.env.example
