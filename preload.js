@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("api", {
   // 💾 Save screenshot to file system
   saveScreenshot: (dataUrl) => ipcRenderer.invoke("saveScreenshot", dataUrl),
 
+  // 🔌 Enable local device access (run api-connect.sh script)
+  enableLocalDeviceAccess: (options) => ipcRenderer.invoke("enableLocalDeviceAccess", options),
+
   // 🔹 New region getter
   getRegion: () => ipcRenderer.invoke("getRegion"),
 });

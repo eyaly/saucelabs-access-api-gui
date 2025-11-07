@@ -162,3 +162,56 @@ ipcMain.handle("saveScreenshot", async (_, dataUrl) => {
     return { success: false, error: err.message };
   }
 });
+
+// ----------------------------------------------------
+// 🔌 ENABLE LOCAL DEVICE ACCESS (Run api-connect.sh script)
+// ----------------------------------------------------
+// Requires environment variables to be set beforehand:
+//   SAUCE_USERNAME: SauceLabs username
+//   SAUCE_ACCESS_KEY: SauceLabs API access key
+//   SAUCE_API_URL: One of:
+//     - https://api.us-west-1.saucelabs.com
+//     - https://api.eu-central-1.saucelabs.com
+//     - https://api.us-east-4.saucelabs.com
+ipcMain.handle("enableLocalDeviceAccess", async (_, { sessionId, creds, region }) => {
+  try {
+    const scriptPath = path.join(__dirname, "scripts", "api-connect.sh");
+    
+    // Build API URL based on region (matches the three production environments)
+    const apiUrl = `https://api.${region || "eu-central-1"}.saucelabs.com`;
+    
+    // Escape for AppleScript string (escape quotes and backslashes)
+    const escapeAppleScript = (str) => {
+      return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    };
+    
+    // Build the command - check for SAUCE_ACCESS_KEY first, export only SAUCE_API_URL, then run script
+    // Don't export credentials (SAUCE_USERNAME, SAUCE_ACCESS_KEY) in terminal to avoid exposing them
+    const escapedScriptPath = scriptPath.replace(/'/g, "'\\''");
+    const escapedDir = __dirname.replace(/'/g, "'\\''");
+    const escapedSessionId = sessionId.replace(/'/g, "'\\''");
+    const escapedApiUrl = apiUrl.replace(/'/g, "'\\''");
+    
+    const command = `cd '${escapedDir}' && if [ -z "$SAUCE_ACCESS_KEY" ]; then echo "Error: SAUCE_ACCESS_KEY environment variable is not set. Please set SAUCE_USERNAME, SAUCE_ACCESS_KEY, and SAUCE_API_URL before running this script." && exit 1; fi && export SAUCE_API_URL='${escapedApiUrl}' && bash '${escapedScriptPath}' '${escapedSessionId}'`;
+    
+    // Use osascript to open Terminal with the command
+    const { exec } = require("child_process");
+    const appleScript = `tell application "Terminal"
+      do script "${escapeAppleScript(command)}"
+      activate
+    end tell`;
+    
+    exec(`osascript -e '${appleScript.replace(/'/g, "'\\''")}'`, (error) => {
+      if (error) {
+        console.error("❌ Error opening terminal:", error);
+      } else {
+        console.log(`✅ Opened terminal with api-connect.sh for session ${sessionId}`);
+      }
+    });
+    
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Error enabling local device access:", err);
+    return { success: false, error: err.message };
+  }
+});

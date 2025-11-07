@@ -369,6 +369,40 @@ export default function DeviceActionsSidebar({ device, onClose }) {
     }
   };
 
+  const handleEnableLocalDeviceAccess = async () => {
+    if (!device.sessionId) {
+      alert("No active session found");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const creds = await window.api.getCreds();
+      if (!creds?.username || !creds?.accessKey) {
+        alert("Missing credentials. Please update Settings.");
+        return;
+      }
+
+      const region = device.region || creds.region || "eu-central-1";
+      
+      const result = await window.api.enableLocalDeviceAccess({
+        sessionId: device.sessionId,
+        creds,
+        region,
+      });
+
+      if (result.success) {
+        alert("✅ Terminal window opened with api-connect.sh script running.\n\nCheck the Terminal window for output.");
+      } else {
+        alert(`❌ Failed to open terminal: ${result.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCustomApiRequest = async () => {
     if (!apiPath.trim()) {
       alert("Please enter an API path");
@@ -574,6 +608,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             <option value="sessionDetails">Get Session Details</option>
             <option value="listAppInstallations">List App Installations</option>
             <option value="openUrl">Open a URL</option>
+            <option value="enableLocalDeviceAccess">Enable Local Device Access</option>
             {isAndroid && <option value="runAdbShellCommand">Run ADB Shell Command</option>}
           </select>
 
@@ -895,6 +930,41 @@ export default function DeviceActionsSidebar({ device, onClose }) {
                 }}
               >
                 {actionLoading ? "Opening..." : "Open URL"}
+              </button>
+            </div>
+          )}
+
+          {/* Enable Local Device Access */}
+          {selectedAction === "enableLocalDeviceAccess" && (
+            <div>
+              <div style={{ 
+                padding: "12px", 
+                backgroundColor: "#1e1e1e", 
+                border: "1px solid #4b5563", 
+                borderRadius: "4px",
+                marginBottom: "12px",
+                fontSize: "12px",
+                color: "#9ca3af",
+                lineHeight: "1.5"
+              }}>
+                This will open a Terminal window and run the api-connect.sh script with the current session ID. The script will set up local device access.
+              </div>
+              <button
+                onClick={handleEnableLocalDeviceAccess}
+                disabled={actionLoading || !device.sessionId}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading || !device.sessionId ? "#4b5563" : "#6366f1",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading || !device.sessionId ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                }}
+              >
+                {actionLoading ? "Opening Terminal..." : "Enable Local Device Access"}
               </button>
             </div>
           )}
