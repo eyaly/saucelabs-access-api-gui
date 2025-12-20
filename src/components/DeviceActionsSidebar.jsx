@@ -16,6 +16,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
   const [storageFiles, setStorageFiles] = useState([]);
   const [loadingStorageFiles, setLoadingStorageFiles] = useState(false);
   const [openUrl, setOpenUrl] = useState("");
+  const [appiumVersion, setAppiumVersion] = useState("latest"); // New state for Appium version
 
   if (!device || !device.sessionId) {
     return null;
@@ -49,6 +50,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
       });
 
       if (response.ok && response.data) {
+        console.log("Fetched storage files response data:", response.data);
         // Extract file names from response
         let files = Array.isArray(response.data) 
           ? response.data.map(item => item.name || item).filter(Boolean)
@@ -391,13 +393,109 @@ export default function DeviceActionsSidebar({ device, onClose }) {
         region,
       });
 
-      if (result.success) {
-        alert("✅ Terminal window opened with api-connect.sh script running.\n\nCheck the Terminal window for output.");
-      } else {
+      if (!result.success) {
         alert(`❌ Failed to open terminal: ${result.error || "Unknown error"}`);
       }
     } catch (err) {
       alert(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStartAppiumServer = async () => {
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/appiumserver`;
+    const body = {
+      appiumVersion: appiumVersion.trim(),
+    };
+
+    setApiMethod("POST");
+    setApiPath(`sessions/${device.sessionId}/appiumserver`);
+    setApiBody(JSON.stringify(body, null, 2));
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "POST",
+        body,
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+
+      if (response.ok) {
+        if (response.data?.url) {
+          alert(`✅ Appium Server started. URL: ${response.data.url}`);
+        } else {
+          alert(`✅ Appium Server started successfully, but no URL found in response. Full response: ${JSON.stringify(response.data)}`);
+          console.log("Appium Server start successful, but no URL found:", response);
+        }
+      } else {
+        console.error('❌ Failed to start Appium server. Full response:', response);
+        alert(`❌ Failed to start Appium server: ${response.data?.message || response.data?.detail || JSON.stringify(response.data) || "Unknown error"}`);
+      }
+    } catch (err) {
+      alert(`❌ Error starting Appium server: ${err.message}`);
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGetAppiumServerUrl = async () => {
+    setActionLoading(true);
+    setApiResponse(null);
+    const creds = await window.api.getCreds();
+    const region = device.region || creds.region || "eu-central-1";
+    const url = `https://api.${region}.saucelabs.com/rdc/v2/sessions/${device.sessionId}/appiumserver`;
+
+    setApiMethod("GET");
+    setApiPath(`sessions/${device.sessionId}/appiumserver`);
+    setApiBody("");
+
+    try {
+      const response = await window.api.fetchSauce({
+        url,
+        creds,
+        method: "GET",
+      });
+
+      setApiResponse({
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+      });
+
+      if (response.ok) {
+        if (response.data?.url) {
+          alert(`✅ Appium Server URL: ${response.data.url}`);
+        } else {
+          alert(`✅ Successfully retrieved Appium server status, but no URL found in response. Full response: ${JSON.stringify(response.data)}`);
+          console.log("Appium Server status retrieval successful, but no URL found:", response);
+        }
+      } else {
+        console.error('❌ Failed to get Appium server URL. Full response:', response);
+        alert(`❌ Failed to get Appium server URL: ${response.data?.message || response.data?.detail || JSON.stringify(response.data) || "Unknown error"}`);
+      }
+    } catch (err) {
+      alert(`❌ Error getting Appium server URL: ${err.message}`);
+      setApiResponse({
+        status: 0,
+        ok: false,
+        error: err.message,
+      });
     } finally {
       setActionLoading(false);
     }
@@ -591,6 +689,7 @@ export default function DeviceActionsSidebar({ device, onClose }) {
               setScreenshotUrl(null);
               setAdbShellCommand("");
               setOpenUrl("");
+              setAppiumVersion("latest");
             }}
             style={{
               width: "100%",
@@ -609,8 +708,76 @@ export default function DeviceActionsSidebar({ device, onClose }) {
             <option value="listAppInstallations">List App Installations</option>
             <option value="openUrl">Open a URL</option>
             <option value="enableLocalDeviceAccess">Enable Local Device Access</option>
+            <option value="appiumServer">Appium Server</option>
             {isAndroid && <option value="runAdbShellCommand">Run ADB Shell Command</option>}
           </select>
+
+          {/* Appium Server */}
+          {selectedAction === "appiumServer" && (
+            <div>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                <input
+                  type="text"
+                  placeholder="Appium Version (e.g., latest, stable, 1.22.3)"
+                  value={appiumVersion}
+                  onChange={(e) => setAppiumVersion(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 10px",
+                    backgroundColor: "#1e1e1e",
+                    border: "1px solid #4b5563",
+                    borderRadius: "4px",
+                    color: "#d4d4d4",
+                    fontSize: "12px",
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleStartAppiumServer();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleStartAppiumServer}
+                  disabled={actionLoading || !appiumVersion.trim()}
+                  style={{
+                    padding: "8px 12px",
+                    backgroundColor: actionLoading || !appiumVersion.trim() ? "#4b5563" : "#f59e0b",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: actionLoading || !appiumVersion.trim() ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Start Appium Server"
+                >
+                  {actionLoading ? "Starting..." : "🚀 Start"}
+                </button>
+              </div>
+              <button
+                onClick={handleGetAppiumServerUrl}
+                disabled={actionLoading}
+                style={{
+                  width: "100%",
+                  padding: "8px 16px",
+                  backgroundColor: actionLoading ? "#4b5563" : "#8b5cf6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  fontWeight: 500,
+                  fontSize: "12px",
+                  marginBottom: "8px",
+                }}
+              >
+                {actionLoading ? "Getting URL..." : "🔗 Get Appium Server URL"}
+              </button>
+              <div style={{ fontSize: "10px", color: "#6b7280", marginBottom: "12px" }}>
+                Appium versions can be found here: <a href="https://docs.saucelabs.com/mobile-apps/automated-testing/appium/appium-versions/#real-devices" target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", textDecoration: "underline" }}>Sauce Labs Appium Versions</a>
+              </div>
+            </div>
+          )}
 
           {/* Install App Form */}
           {selectedAction === "installApp" && (

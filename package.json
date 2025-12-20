@@ -11,7 +11,8 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:win": "npm run build && electron-builder --win",
     "build:all": "npm run build && electron-builder --mac --win",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "start one": "npm start"
   },
   "keywords": [],
   "author": "",
