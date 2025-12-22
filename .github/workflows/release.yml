@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-release:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
 
     strategy:
       matrix:
