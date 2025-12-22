@@ -1,0 +1,64 @@
+name: Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0, v1.2.3
+
+jobs:
+  build-and-release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Use a compatible Node.js version
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build for macOS
+        if: runner.os == 'macOS'
+        run: npm run build:mac
+
+      - name: Build for Windows
+        if: runner.os == 'Windows'
+        run: npm run build:win
+
+      - name: Get release filename (macOS)
+        id: get_mac_filename
+        if: runner.os == 'macOS'
+        run: |
+          APP_NAME="Sauce Labs Access API" # From package.json product name
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          FILENAME="${APP_NAME}-${VERSION}-arm64.dmg" # Adjust arch if needed (e.g., x64)
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Get release filename (Windows)
+        id: get_win_filename
+        if: runner.os == 'Windows'
+        run: |
+          $APP_NAME = "Sauce Labs Access API" # From package.json product name
+          $VERSION = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 2)
+          $FILENAME = "${APP_NAME} Setup ${VERSION}.exe" # Default electron-builder name
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/${{ steps.get_mac_filename.outputs.filename }}
+            release/${{ steps.get_win_filename.outputs.filename }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
