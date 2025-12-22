@@ -3,16 +3,14 @@ name: Release Electron App
 on:
   push:
     tags:
-      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0, v1.2.3
+      - 'v*.*.*'
 
 jobs:
   build-and-release:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+    
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -24,45 +22,49 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Use a compatible Node.js version
+          node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
 
+      # We add --publish never to prevent the GH_TOKEN error
       - name: Build for macOS
         if: runner.os == 'macOS'
-        run: npm run build:mac
+        run: npm run build:mac -- --publish never
 
       - name: Build for Windows
         if: runner.os == 'Windows'
-        run: npm run build:win
+        run: npm run build:win -- --publish never
 
       - name: Get release filename (macOS)
         id: get_mac_filename
         if: runner.os == 'macOS'
+        shell: bash
         run: |
-          APP_NAME="Sauce Labs Access API" # From package.json product name
           VERSION="${GITHUB_REF#refs/tags/v}"
-          FILENAME="${APP_NAME}-${VERSION}-arm64.dmg" # Adjust arch if needed (e.g., x64)
+          # Matching the filename from your logs: Sauce Labs Access API-1.0.0-arm64.dmg
+          FILENAME="Sauce Labs Access API-${VERSION}-arm64.dmg"
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Get release filename (Windows)
         id: get_win_filename
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          $APP_NAME = "Sauce Labs Access API" # From package.json product name
           $VERSION = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 2)
-          $FILENAME = "${APP_NAME} Setup ${VERSION}.exe" # Default electron-builder name
+          # Matching standard electron-builder Windows output
+          $FILENAME = "Sauce Labs Access API Setup ${VERSION}.exe"
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          # Use a wildcard to find the file or the specific variables
           files: |
             release/${{ steps.get_mac_filename.outputs.filename }}
             release/${{ steps.get_win_filename.outputs.filename }}
           draft: false
           prerelease: false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
