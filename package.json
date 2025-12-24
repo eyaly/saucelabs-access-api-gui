@@ -37,15 +37,17 @@
         "zip"
       ],
       "icon": "build/icon.icns",
-      "entitlements": "build/entitlements.mac.plist"
-    },
+      "entitlements": "build/entitlements.mac.plist",
+      "publish": "never"
+    },,
     "win": {
       "target": [
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.ico"
-    },
+      "icon": "build/icon.ico",
+      "publish": "never"
+    },,
     "linux": {
       "target": [
         "AppImage",
