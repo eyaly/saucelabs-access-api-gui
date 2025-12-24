@@ -105,15 +105,16 @@ jobs:
         run: |
           $APP_NAME = "Sauce Labs Access API" # From package.json product name
           $VERSION = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 2)
-          $FILENAME = "${APP_NAME} Setup ${VERSION}.exe" # Default electron-builder name
-          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+          echo "installer_filename=${APP_NAME} Setup ${VERSION}.exe" >> $GITHUB_OUTPUT
+          echo "portable_filename=${APP_NAME} ${VERSION}.exe" >> $GITHUB_OUTPUT
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
             release/${{ steps.get_mac_filename.outputs.filename }}
-            release/${{ steps.get_win_filename.outputs.filename }}
+            release/${{ steps.get_win_filename.outputs.installer_filename }}
+            release/${{ steps.get_win_filename.outputs.portable_filename }}
           draft: false
           prerelease: false
         env: # This GH_TOKEN is specifically for softprops/action-gh-release
