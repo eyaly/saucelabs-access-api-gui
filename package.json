@@ -19,7 +19,7 @@
   "license": "ISC",
   "build": {
     "appId": "com.saucelabs.access-api-gui",
-    "productName": "Sauce Labs Access API",
+    "productName": "Sauce Labs Access API GUI",
     "publish": null,
     "directories": {
       "output": "release"

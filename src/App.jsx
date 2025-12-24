@@ -72,12 +72,12 @@ export default function App() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img
-            src="/sauce-logo.png"
+            src="./sauce-logo.png"
             alt="Sauce Labs"
             style={{ height: 30, width: "auto" }}
           />
           <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>
-            Sauce Access GUI
+            Sauce Labs Access API GUI
           </h2>
         </div>
 
