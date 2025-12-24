@@ -24,7 +24,6 @@ node_modules/
 # Vite
 .vite/
 dist/
-build/
 
 # Environments
 .env
