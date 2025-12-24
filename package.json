@@ -20,6 +20,7 @@
   "build": {
     "appId": "com.saucelabs.access-api-gui",
     "productName": "Sauce Labs Access API",
+    "publish": null,
     "directories": {
       "output": "release"
     },
