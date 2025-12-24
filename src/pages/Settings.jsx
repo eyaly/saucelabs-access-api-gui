@@ -41,6 +41,19 @@ export default function Settings() {
         Settings
       </h1>
 
+      <p style={{ marginBottom: 20, lineHeight: "1.6", fontSize: "0.95rem", color: "#555" }}>
+        This application provides a user-friendly interface for interacting with the{" "}
+        <a
+          href="https://github.com/saucelabs/real-device-api"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#007bff", textDecoration: "none" }}
+        >
+          official Sauce Labs Real Device API
+        </a>
+        . It enables you to execute various API commands on your private real devices directly from this UI, simplifying common tasks and device management.
+      </p>
+
       <div style={{ marginBottom: 20 }}>
         <label style={{ display: "block", marginBottom: 6, fontWeight: 600 }}>
           Sauce Username
