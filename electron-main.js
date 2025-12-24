@@ -1,21 +1,41 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const Store = require("electron-store").default;
-
 // ✅ native fetch is available in Electron (Node 18+)
 const fetch = global.fetch;
 
 // 🔹 Persistent storage for credentials + region
-const store = new Store({
-  defaults: {
-    creds: {
-      username: "",
-      accessKey: "",
-      region: "eu-central-1",
+let store; // Declare store here so it's accessible globally
+
+// Wrap initialization in an async IIFE (Immediately Invoked Function Expression)
+// to allow using await for dynamic import.
+(async () => {
+  const { default: Store } = await import("electron-store");
+  store = new Store({
+    defaults: {
+      creds: {
+        username: "",
+        accessKey: "",
+        region: "eu-central-1",
+      },
     },
-  },
-});
+  });
+
+  // All ipcMain handles that rely on 'store' should be defined *after* 'store' is initialized.
+  // This ensures 'store' is ready when they are called.
+  // ----------------------------------------------------
+  // 📦 ELECTRON STORE HANDLERS
+  // ----------------------------------------------------
+  ipcMain.handle("getCreds", () => store.get("creds"));
+  ipcMain.handle("saveCreds", (_, creds) => {
+    store.set("creds", creds);
+    return true;
+  });
+  ipcMain.handle("getRegion", () => {
+    const creds = store.get("creds");
+    return creds?.region || "eu-central-1";
+  });
+})();
 
 // ----------------------------------------------------
 // 🪟 CREATE MAIN WINDOW
@@ -58,18 +78,6 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-// ----------------------------------------------------
-// 📦 ELECTRON STORE HANDLERS
-// ----------------------------------------------------
-ipcMain.handle("getCreds", () => store.get("creds"));
-ipcMain.handle("saveCreds", (_, creds) => {
-  store.set("creds", creds);
-  return true;
-});
-ipcMain.handle("getRegion", () => {
-  const creds = store.get("creds");
-  return creds?.region || "eu-central-1";
-});
 
 // ----------------------------------------------------
 // 🌐 GENERIC SAUCE API PROXY
