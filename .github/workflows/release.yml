@@ -109,7 +109,7 @@ jobs:
         with:
           files: |
             release/${{ steps.get_mac_filename.outputs.filename }}
-            release/*.exe # This will pick up all .exe files in the release directory on Windows
+            release/*.exe
           draft: false
           prerelease: false
         env:
