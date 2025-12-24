@@ -90,6 +90,11 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run build:win
 
+      - name: List Release Directory Contents (Windows)
+        if: runner.os == 'Windows'
+        run: ls -R release
+        shell: bash # Use bash for consistent ls behavior
+
       - name: Get release filename (macOS)
         id: get_mac_filename
         if: runner.os == 'macOS'
@@ -99,23 +104,13 @@ jobs:
           FILENAME="${APP_NAME}-${VERSION}-arm64.dmg" # Adjust arch if needed (e.g., x64)
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
-      - name: Get release filename (Windows)
-        id: get_win_filename
-        if: runner.os == 'Windows'
-        run: |
-          $APP_NAME = "Sauce Labs Access API" # From package.json product name
-          $VERSION = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 2)
-          echo "installer_filename=${APP_NAME} Setup ${VERSION}.exe" >> $GITHUB_OUTPUT
-          echo "portable_filename=${APP_NAME} ${VERSION}.exe" >> $GITHUB_OUTPUT
-
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
             release/${{ steps.get_mac_filename.outputs.filename }}
-            release/${{ steps.get_win_filename.outputs.installer_filename }}
-            release/${{ steps.get_win_filename.outputs.portable_filename }}
+            release/*.exe # This will pick up all .exe files in the release directory on Windows
           draft: false
           prerelease: false
-        env: # This GH_TOKEN is specifically for softprops/action-gh-release
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
