@@ -64,6 +64,18 @@ jobs:
           # Add the keychain to the user domain search list
           security list-keychains -d user -s "$KEYCHAIN_NAME" "$HOME/Library/Keychains/login.keychain-db"
 
+          # Set the keychain settings to allow all applications to access items
+          security set-keychain-settings "$KEYCHAIN_NAME"
+          
+          # Set the default keychain for the session
+          security default-keychain -s "$KEYCHAIN_NAME"
+
+          # Unlock the keychain to ensure signing operations can access it
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+
+          # Set the certificate's trust settings for codesigning
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME" > /dev/null
+
 
       - name: Build for macOS
         if: runner.os == 'macOS'
