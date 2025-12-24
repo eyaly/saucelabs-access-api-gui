@@ -99,7 +99,7 @@ jobs:
         id: get_mac_filename
         if: runner.os == 'macOS'
         run: |
-          APP_NAME="Sauce Labs Access API" # From package.json product name
+          APP_NAME="Sauce Labs Access API GUI" # From package.json product name
           VERSION="${GITHUB_REF#refs/tags/v}"
           FILENAME="${APP_NAME}-${VERSION}-arm64.dmg" # Adjust arch if needed (e.g., x64)
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
