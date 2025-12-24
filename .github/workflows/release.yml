@@ -50,7 +50,7 @@ jobs:
           rm app_cert.p12 # Remove temporary .p12 file
 
           # Get the exact name of the Developer ID Application identity
-          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_NAME" | grep "Developer ID Application" | awk -F'"' '{print $2}' | head -n 1)
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_NAME" | grep "Developer ID Application" | awk -F'"' '{print $2}' | sed 's/Developer ID Application: //g' | head -n 1)
           if [ -z "$IDENTITY" ]; then
             echo "Error: Developer ID Application identity not found in keychain."
             exit 1
