@@ -93,24 +93,25 @@ body {
 /* ---------- Device Card ---------- */
 .device-card {
   display: flex;
+  flex-direction: column; /* Changed to column to stack elements properly */
   justify-content: space-between;
-  align-items: stretch;
-  gap: 18px;
+  align-items: center; /* Center horizontally within the card */
+  gap: 10px; /* Reduced gap for a more compact look */
   border: 2px solid var(--green);
   border-radius: var(--card-radius);
   background: var(--green-100);
   padding: 20px 22px;
-  padding-left: 11px;
   box-shadow: var(--shadow);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
-  min-height: 320px;
+  min-height: 420px; /* Set a consistent minimum height */
+  max-height: 420px; /* Set a consistent maximum height */
 
   /* sizing for flex layout:
      - base width (flex-basis) controls how many fit per row
      - min and max prevent cards from shrinking/growing too far */
-  flex: 0 1 380px;   /* don't grow beyond max-width, allow shrinking */
-  min-width: 260px;
-  max-width: 480px;
+  flex: 0 1 calc(33.33% - 17.33px); /* For 3 columns: (100% - 2*26px gap) / 3 */
+  min-width: 280px; /* Minimum width to prevent cards from becoming too small */
+  max-width: 400px; /* Maximum width for single card */
   box-sizing: border-box;
   margin: 0;
   align-self: start; /* keep card top-aligned in a row */
@@ -146,11 +147,14 @@ body {
 /* ---------- Left side ---------- */
 .device-info {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex-direction: column; /* Stack image and details vertically */
+  justify-content: space-between; /* Push links to bottom */
+  align-items: flex-start; /* Align contents to the left */
+  flex: 1; /* Allow device-info to fill available horizontal space */
+  min-width: 0; /* Allow content to shrink */
+  gap: 10px; /* Consistent vertical gap between elements */
+  overflow: hidden; /* Hide any overflow within device-info itself */
+  width: 100%; /* Ensure it takes full width of card */
 }
 
 .device-info > div:last-child {
@@ -161,8 +165,10 @@ body {
 
 .device-image {
   max-width: 120px;
-  max-height: 150px;
+  height: 150px; /* Set a fixed height for the image */
   object-fit: contain;
+  align-self: center; /* Center the image if device-info is flex-start */
+  margin-bottom: 10px; /* Space below image */
 }
 
 .device-name {
@@ -254,7 +260,7 @@ body {
   height: 22px;
   margin-bottom: 0; /* Remove bottom margin from toggle itself */
 }
-.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle input { position: absolute; opacity: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer; }
 .slider {
   position: absolute; inset: 0;
   background: #c7cbd1;
@@ -305,6 +311,8 @@ body {
   display: flex;
   gap: 14px;
   margin: 16px 0 0;
+  flex-wrap: wrap; /* Allow links to wrap if space is tight */
+  justify-content: flex-start; /* Align links to the left */
 }
 
 .device-link {
@@ -313,6 +321,7 @@ body {
   color: var(--blue);
   text-decoration: none;
   transition: color 0.2s ease;
+  white-space: nowrap; /* Prevent links from breaking */
 }
 
 .device-links:not(.disabled) .device-link:hover {
@@ -326,10 +335,18 @@ body {
   cursor: default;
 }
 
+.device-details-scrollable {
+  flex: 1; /* Allow it to grow and shrink */
+  overflow-y: auto; /* Enable vertical scrolling if content overflows */
+  padding-right: 5px; /* Add some padding for scrollbar */
+  min-height: 0; /* Important for flex items with overflow-y */
+  width: 100%; /* Take full width within device-info */
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   /* prefer 2 columns on medium screens */
-  .device-card { flex-basis: 45%; min-width: 300px; }
+  .device-card { flex-basis: calc(50% - 13px); min-width: 280px; } /* Adjusted for 2 columns with gap */
 }
 
 @media (max-width: 760px) {

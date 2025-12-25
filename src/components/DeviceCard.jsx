@@ -163,7 +163,7 @@ export default function DeviceCard({ device, onToggleSession, onViewDeviceLog, o
           alt={device.name || device.descriptor}
         />
 
-        <div>
+        <div className="device-details-scrollable">
           <h2 className="device-name">{device.name || device.descriptor}</h2>
           <p className="device-os">
             {osIcon}
